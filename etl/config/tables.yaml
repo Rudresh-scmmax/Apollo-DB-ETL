@@ -1,0 +1,76 @@
+currency_master:
+  primary_key: [currency_id]
+
+supplier_master:
+  primary_key: [supplier_id]
+
+material_type_master:
+  primary_key: [material_type_master_id]
+
+uom_master:
+  primary_key: [uom_id]
+
+location_type_master:
+  primary_key: [location_type_id]
+
+location_master:
+  primary_key: [location_id]
+
+calendar_master:
+  primary_key: [date]
+
+frequency_master:
+  primary_key: [frequency_of_update_id]
+
+repeat_master:
+  primary_key: [repeat_master_id]
+
+purchasing_organizations:
+  primary_key: [purchasing_org_id]
+
+port_master:
+  primary_key: [port_id]
+
+material_master:
+  primary_key: [material_id]
+
+purchaser_plant_master:
+  primary_key: [plant_id]
+
+pricing_source_master:
+  primary_key: [source_of_price_id]
+
+where_to_use_each_price_type:
+  primary_key: [porg_material_price_type_id]
+
+news_tags:
+  primary_key: [news_tag_id]
+
+pricing_type_master:
+  primary_key: [price_type_id]
+
+tile_cost_sheet_chemical_reaction_master_data:
+  primary_key: [m_cr_rrm_id]
+
+currency_exchange_history:
+  primary_key: [currency_exchange_id]
+
+user_currency_preference:
+  primary_key: [user_id]
+
+incoterms_master:
+  primary_key: [incoterm_id]
+
+plant_material_purchase_org_supplier:
+  primary_key: [porg_plant_material_id]
+
+forex_conversion_options_master:
+  primary_key: [forex_conversion_id]
+
+settings_user_material_category:
+  primary_key: [user_material_category_id]
+
+uom_conversion:
+  primary_key: [id]
+
+

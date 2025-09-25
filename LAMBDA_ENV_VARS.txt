@@ -1,0 +1,22 @@
+# Lambda Environment Variables for APOLLO ETL
+# These 5 variables need to be configured in your Lambda function environment
+
+# Database Connection (Required)
+DB_HOST=database-1.cqv8cisuuyq1.us-east-1.rds.amazonaws.com
+DB_PORT=5432
+DB_NAME=apollo
+DB_USER=postgres
+DB_PASS=your_database_password_here
+
+# Optional: ETL Processing Settings
+EXCEL_PATH=Data_processedv4.xlsx
+REPORTS_DIR=/tmp/reports
+
+# Optional: Email Notifications (if needed)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password_here
+REPORT_TO_EMAIL=manager@company.com
+REPORT_FROM_EMAIL=etl-system@company.com
+

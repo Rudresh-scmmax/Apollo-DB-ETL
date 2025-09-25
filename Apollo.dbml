@@ -1,0 +1,536 @@
+Table purchasing_organizations {
+	purchasing_org_id varchar [ pk, unique, note: 'Unique ID for pruchasing entity within a company. example: Global, Asia, EMEA, etc. And Category Managers would belongto one of the Purchasing Organization. 
+
+Same supplier entity could be working with multiple purchase Organization. 
+
+Same Plant-Material combination can be serviced by multiple purchasing organization. For example Production and R&D ' ]
+	purchasing_org_desc varchar(35) [ not null ]
+
+	Note: 'A lot of companies have different purchasing organizations for different regions
+
+we need to have an option to select All Purhcase Org ID ( A respresentation)'
+}
+
+Table incoterms_master {
+	incoterm_id varchar(10) [ pk, unique, note: 'from ERP' ]
+	inco_term_desc varchar(35) [ not null, note: 'From ERP' ]
+	transport_mode varchar(15) [ not null ]
+	packaging_charges binary(4) [ not null ]
+	loading_charges binary(4) [ not null ]
+	delivery_to_port binary(4) [ not null ]
+	export_duty_taxes binary(4) [ not null ]
+	origin_terminal_charges binary(4) [ not null ]
+	loading_on_carriage binary(4) [ not null ]
+	carriage_freight_charges binary(4) [ not null ]
+	insurance binary(4) [ not null ]
+	destination_terminal_charges binary(4) [ not null ]
+	delivery_to_destination_charge binary(4) [ not null ]
+	import_duty_taxes binary(4) [ not null ]
+
+	Note: 'Will popoulate the tabel and use it over time. Limite use right now.'
+}
+
+Table plant_material_purchase_org_supplier {
+	porg_plant_material_id varchar(35) [ pk, unique ]
+	plant_id varchar(10) [ not null ]
+	material_id varchar(15) [ not null ]
+	purchasing_org_id varchar(10) [ not null ]
+	User_ID integer
+	supplier_id varchar(10) [ not null ]
+	valid_from date [ not null ]
+	valid_to date [ not null ]
+	User_Purchase_Org_ID integer
+
+	Note: 'Same Plant_id & Material_Id can be serviced by different purchasing organizations in the same period'
+}
+
+Table user_currency_preference {
+	user_preference_cur varchar(10) [ pk, unique ]
+	base_currency varchar(10) [ not null ]
+	user_preference_for varchar(10) [ not null ]
+	user_preference_desc nvarchar(255) [ not null ]
+}
+
+Table material_master {
+	material_id varchar(15) [ pk, unique, note: 'From ERP where material type - Raw Material or MRO. Create withing apollo for other material types eg. Raw material of raw materials or value drivers. ' ]
+	material_description varchar(35) [ not null ]
+	material_type varchar(15) [ not null, note: 'Raw Materials, MRO, Raw Material of Raw materails' ]
+	material_category varchar(15) [ not null, note: 'for having control over material category access Possibily for future use. ' ]
+	base_uom varchar(10) [ not null ]
+	cas_no varchar(20) [ not null ]
+	unspsc_code varchar(20) [ not null ]
+	hsn_code varchar(20) [ not null ]
+	user_defined_material_desc varchar(40) [ not null ]
+
+	Note: 'Material Id and Material Desc are master data that should be same as ERP system'
+}
+
+Table supplier_master {
+	supplier_id varchar(10) [ pk, unique, note: 'Comes from ERP only' ]
+	supplier_name varchar(35) [ not null ]
+	supplier_country varchar(35) [ not null ]
+	base_currency_accounting varchar(4) [ not null, note: 'Needed for cost sheet. while comparing price history we need to use the same country  / Region price as that of the supplier location. Future' ]
+	relevant_country_region varchar(35) [ not null ]
+	user_defined_supplier_desc varchar(40) [ not null ]
+	supplier_duns varchar(35) [ not null ]
+}
+
+Table purchaser_plant_master {
+	plant_id varchar(10) [ pk, unique ]
+	plant_name varchar(35) [ not null ]
+	plant_country varchar(35) [ not null ]
+	base_currency_accounting varchar(4) [ not null ]
+	special_economic_zone boolean [ not null ]
+	nearest_port nvarchar(255) [ not null ]
+	logistic_cost_per_container integer [ not null ]
+}
+
+Table port_master {
+	port_id integer [ pk, unique ]
+	port nvarchar(255) [ not null ]
+}
+
+Table ocean_freight_master {
+	ocean_freight_id integer [ pk, unique ]
+	source_port_id nvarchar(255) [ not null ]
+	destination_port_id integer [ not null ]
+	freight_cost integer [ not null ]
+	freight_cost_currency nvarchar(255) [ not null ]
+}
+
+Table material_supplier_general_intelligence {
+	material_supplier_general_intelligence_id varchar(30) [ pk, unique ]
+	supplier_id varchar(35) [ not null ]
+	material_id varchar(15) [ not null ]
+	supplier_name varchar(10) [ not null ]
+	supplier_contact_name varchar(30) [ not null ]
+	supplier_contact_email varchar(30) [ not null ]
+	supplier_contact_mobile varchar(15) [ not null ]
+	supplier_country varchar(30) [ not null ]
+
+	Note: 'Use this mapping to capture all suppliers for any raw material that are not in the approved list'
+}
+
+Table supplier_hierarchy {
+	supplier_hierarchy_id integer [ pk, unique ]
+	supplier_id varchar(35) [ not null ]
+	parent_supplier_id varchar(35) [ not null ]
+}
+
+Table material_synonyms {
+	synonym_id integer [ pk, unique ]
+	material_id varchar(35) [ not null ]
+	material_synonym varchar(35) [ not null ]
+	synonym_language varchar(40) [ not null ]
+}
+
+Table chemical_raw_material_synonyms {
+	material_synonym_id varchar(5) [ pk, unique ]
+	material_id_or_reaction_raw_mat varchar(15) [ not null ]
+	synonym_name varchar(15) [ not null ]
+}
+
+Table region_hierarchy {
+	synonym_id integer [ pk, unique ]
+	region_id varchar(35) [ not null ]
+	region_name varchar(35) [ not null ]
+	region_synonym varchar(40) [ not null ]
+	type varchar(35) [ not null ]
+	parent_id integer [ not null ]
+}
+
+Table plant_to_port_mapping_master {
+	plant_port_id varchar(25) [ pk, unique ]
+	plant_id varchar(10) [ not null ]
+	plant_name varchar(35) [ not null ]
+	port_id varchar(10) [ not null ]
+	port_name varchar(35) [ not null ]
+	port_country varchar(35) [ not null ]
+	preferred_port boolean [ not null ]
+}
+
+Table uom_conversion {
+	id integer
+	unit_name varchar(35) [ not null ]
+	unit_symbol varchar(40) [ not null ]
+	measurement_type varchar(255) [ not null ]
+	system varchar(35) [ not null ]
+	conversion_factor integer [ not null ]
+	base_unit varchar(35) [ not null ]
+	attribute_8 integer [ not null ]
+	is_default boolean [ not null ]
+	description nvarchar(255) [ not null ]
+	syn nvarchar(255) [ not null ]
+
+	indexes {
+		(id, measurement_type) [ name: 'uom_conversion_index_0' ]
+	}
+}
+
+Table currency_exchange_history {
+	currency_exchange_id varchar(10) [ not null ]
+	from_currency varchar(10) [ not null ]
+	to_currency varchar(10) [ not null ]
+	date_from date [ not null ]
+	date_to date [ not null ]
+	multiplier decimal(10,2) [ not null ]
+}
+
+Table company_currency_exchange_history {
+	currency_exchange_Purhcase_Org_id varchar(10) [ not null ]
+	from_currency varchar(10) [ not null ]
+	to_currency varchar(10) [ not null ]
+	date_from date [ not null ]
+	date_to date [ not null ]
+	multiplier decimal(10,2) [ not null ]
+	Purchase_Org_ID varchar
+}
+
+Table news_porg_plant_material_best_sources {
+	news_porg_plant_material_id varchar(35) [ pk, unique ]
+	plant_id varchar(10) [ not null ]
+	material_category integer [ not null ]
+	material_id varchar(15) [ not null ]
+	purchasing_org_id varchar(10) [ not null ]
+	supplier_id varchar(10) [ not null ]
+	source_name varchar(30) [ not null ]
+	login_credentials_api_key integer [ not null ]
+	login_credentials_user_id integer [ not null ]
+	login_cred_pwd_attribute_10 integer [ not null ]
+}
+
+Table news_porg_plant_material_source_data {
+	news_porg_plant_material_source_data_id varchar(35) [ pk, unique ]
+	plant_id varchar(10) [ not null ]
+	material_category integer [ not null ]
+	material_id varchar(15) [ not null ]
+	purchasing_org_id varchar(10) [ not null ]
+	supplier_id varchar(10) [ not null ]
+	source_name varchar(30) [ not null ]
+	actual_news varchar(500) [ not null ]
+	ai_created_impact_demand_supply varchar(20) [ not null ]
+	ai_created_impact_summarized varchar(100) [ not null ]
+	user_id integer [ not null ]
+	user_updates_summary varchar(100) [ not null ]
+	reliability_of_news varchar(255) [ not null ]
+	news_tags json [ not null ]
+	date_of_publication datetime [ not null ]
+	key_takeaway nvarchar(255) [ not null ]
+	user_update_date datetime [ not null ]
+	active binary(255) [ not null ]
+
+	Note: 'All materials that a plant procures should appear in this table'
+}
+
+Table news_tags {
+	news_tag varchar(255) [ pk, unique ]
+	force_majeure varchar(255) [ not null ]
+	plant_closure nvarchar(255) [ not null ]
+	regulation_tax nvarchar(255) [ not null ]
+	others nvarchar(255) [ not null ]
+}
+
+Table tile_cost_sheet_historical_current_supplier {
+	porg_plant_material_supplier_date varchar(35) [ pk, unique ]
+	plant_id varchar(10) [ not null ]
+	material_id varchar(15) [ not null ]
+	purchasing_org_id varchar(10) [ not null ]
+	supplier_id varchar(10) [ not null ]
+	date_of_quote date [ not null ]
+	incoterms varchar(5) [ not null ]
+	uom_of_quote varchar(5) [ not null ]
+	cost_at_factory_gate decimal(8,2) [ not null ]
+	currency_cost_factory_gate varchar(5) [ not null ]
+	cost_given_in_quote decimal(8,2) [ not null ]
+	currency_cost_given_quote varchar(5) [ not null ]
+	credit_terms_days integer [ not null ]
+	country_of_origin varchar(255) [ not null ]
+}
+
+Table tile_cost_sheet_chemical_reaction_master_data {
+	m_cr_rrm_id varchar(30) [ pk, unique ]
+	material_id varchar(15) [ not null ]
+	chemical_reaction_id varchar(10) [ not null ]
+	reaction_raw_material_id varchar(15) [ not null ]
+	reaction_raw_material_desc varchar(35) [ not null ]
+	reaction_raw_material_cas_no varchar(20) [ not null ]
+	reaction_raw_material_base_uom varchar(10) [ not null ]
+	reaction_raw_material_1_consumption decimal(5,3) [ not null ]
+	valid_from date [ not null ]
+	valid_to date [ not null ]
+
+	Note: 'This table is used only for chemicals category'
+}
+
+Table pricing_type_master {
+	price_type_id integer [ not null ]
+	price_type_desc integer [ not null ]
+	source_of_price integer [ not null ]
+	frequency_of_update integer [ not null ]
+}
+
+Table where_to_use_each_price_type {
+	porg_material_price_type_id varchar(35) [ pk, unique ]
+	material_id varchar(15) [ not null ]
+	purchasing_org_id varchar(10) [ not null ]
+	price_type_id varchar(30) [ not null ]
+	use_in_cost_sheet boolean [ not null ]
+	use_in_price_benchmarking boolean [ not null ]
+	use_in_spend_analytics boolean [ not null ]
+}
+
+Table price_data_country_storage {
+	material_plant_id varchar(35) [ pk, unique ]
+	material_id varchar(15) [ not null ]
+	plant_id varchar(10) [ not null ]
+	country varchar(30) [ not null ]
+}
+
+Table price_history_data {
+	material_price_type_period_id varchar(35) [ pk, unique ]
+	material_id varchar(15) [ not null ]
+	period_start_date date [ not null ]
+	period_end_date date [ not null ]
+	country varchar(30) [ not null ]
+	price decimal(10,2) [ not null ]
+	price_currency varchar(5) [ not null ]
+	price_history_source nvarchar(255) [ not null ]
+	price_type char(255) [ not null ]
+}
+
+Table purchase_history_transactional_data {
+	purchase_transaction_id varchar(20) [ pk, unique ]
+	purchasing_org_id varchar(10) [ not null ]
+	material_id varchar(15) [ not null ]
+	plant_id varchar(10) [ not null ]
+	supplier_id varchar(10) [ not null ]
+	po_number integer [ not null ]
+	purchase_date date [ not null ]
+	currency_of_po varchar(5) [ not null ]
+	uom varchar(10) [ not null ]
+	quantity decimal(8,2) [ not null ]
+	cost_per_uom decimal(8,2) [ not null ]
+	total_cost decimal(8,2) [ not null ]
+	payment_terms varchar(20) [ not null ]
+	freight_terms varchar(20) [ not null ]
+	Transaction_Posting_Date date
+
+	Note: 'This will come as a dump every day with the list of net new POs issued'
+}
+
+Table tile_multiple_point_engagements {
+	porg_plant_material_supplier_date varchar(35) [ pk, unique ]
+	plant_id varchar(10) [ not null ]
+	material_id varchar(15) [ not null ]
+	purchasing_org_id varchar(10) [ not null ]
+	supplier_id varchar(10) [ not null ]
+	date_of_meeting date [ not null ]
+	reference_email_document_id varchar(30) [ not null ]
+	media_link varchar(30) [ not null ]
+}
+
+Table tile_vendor_minutes_of_meeting {
+	porg_plant_material_supplier_date varchar(35) [ pk, unique ]
+	plant_id varchar(10) [ not null ]
+	material_id varchar(15) [ not null ]
+	purchasing_org_id varchar(10) [ not null ]
+	supplier_id varchar(10) [ not null ]
+	date_of_meeting date [ not null ]
+	reference_email_document_id varchar(30) [ not null ]
+	media_link varchar(30) [ not null ]
+
+	Note: 'Minutes of meeting are sent out and extracted by Apollo from emails'
+}
+
+Table audit_snapshot_price_prediction_negotiation {
+	porg_plant_material_date_id varchar(20) [ pk, unique ]
+	purchasing_org_id varchar(10) [ not null ]
+	material_id varchar(15) [ not null ]
+	plant_id varchar(10) [ not null ]
+	capacity_utilization varchar(10) [ not null ]
+	conversion_spread decimal(10,2) [ not null ]
+	factors_influencing_demand varchar(500) [ not null ]
+	demand_outlook varchar(10) [ not null ]
+	factors_influencing_supply varchar(500) [ not null ]
+	supply_disruption varchar(10) [ not null ]
+	business_cycle varchar(10) [ not null ]
+	news_highlights varchar(500) [ not null ]
+	forecasted_value_short decimal(10,2) [ not null ]
+	forecasted_date date [ not null ]
+	forecasted_value_long decimal(10,2) [ not null ]
+	factors_influencing_forecast varchar(500) [ not null ]
+	forecasted_average_value decimal(10,2) [ not null ]
+	news_insights_obj varchar(500) [ not null ]
+}
+
+Table settings_field_names_in_table {
+	field_name_change_id varchar(15) [ pk, unique ]
+	table_name varchar(30) [ not null ]
+	existing_field_name varchar(30) [ not null ]
+	new_field_name varchar(5) [ not null ]
+
+	Note: 'This will help us in being able to change field names based on what the customer wants'
+}
+
+Table settings_user_material_category_tile_preferences {
+	user_material_category_id varchar(40) [ pk, unique ]
+	user_id varchar(25) [ not null ]
+	tile_market_research_summary_length varchar(10) [ not null ]
+	material_category varchar(15) [ not null ]
+	tile_news_preferred_sources binary(1) [ not null ]
+	tile_cost_sheet_price_history_window integer [ not null ]
+	tile_cost_sheet_periods varchar(10) [ not null ]
+	tile_cost_sheet_cost_calculation varchar(10) [ not null ]
+	tile_cost_sheet_forex_values varchar(10) [ not null ]
+
+	Note: 'This will help us to enable user preferences at a material category and tile level'
+}
+
+Table country_hsn_code_wise_duty_structure {
+	id decimal(255,255) [ pk, unique ]
+	hsn_code nvarchar(255) [ not null ]
+	destination_country varchar [ not null ]
+	net_duty decimal(255,255) [ not null ]
+	country_of_origin_all varchar [ not null ]
+}
+
+Table User_Purhase_Org {
+	User_Purchase_Org_ID integer [ pk ]
+	Purchase_Org_ID varchar
+	User_ID integer
+}
+
+Table User Master {
+	User_ID integer [ pk, increment, not null, unique ]
+	User_Email varchar
+}
+
+Table Country_master {
+	Country_ID integer [ pk, increment, not null, unique ]
+	Country_Code varchar
+	Country_Name varchar
+}
+
+Ref fk_plant_material_purchase_org_supplier_plant_id_purchaser_plant_master {
+	plant_material_purchase_org_supplier.plant_id > purchaser_plant_master.plant_id [ delete: no action, update: no action ]
+}
+
+Ref fk_plant_material_purchase_org_supplier_material_id_material_master {
+	plant_material_purchase_org_supplier.material_id > material_master.material_id [ delete: no action, update: no action ]
+}
+
+Ref fk_plant_material_purchase_org_supplier_purchasing_org_id_purchasing_organizations {
+	plant_material_purchase_org_supplier.purchasing_org_id > purchasing_organizations.purchasing_org_id [ delete: no action, update: no action ]
+}
+
+Ref fk_plant_material_purchase_org_supplier_supplier_id_supplier_master {
+	plant_material_purchase_org_supplier.supplier_id > supplier_master.supplier_id [ delete: no action, update: no action ]
+}
+
+Ref fk_material_supplier_general_intelligence_material_id_material_master {
+	material_supplier_general_intelligence.material_id > material_master.material_id [ delete: no action, update: no action ]
+}
+
+Ref fk_material_supplier_general_intelligence_supplier_id_supplier_master {
+	material_supplier_general_intelligence.supplier_id > supplier_master.supplier_id [ delete: no action, update: no action ]
+}
+
+Ref fk_news_porg_plant_material_source_data_plant_id_purchaser_plant_master {
+	news_porg_plant_material_source_data.plant_id > purchaser_plant_master.plant_id [ delete: no action, update: no action ]
+}
+
+Ref fk_news_porg_plant_material_source_data_material_id_material_master {
+	news_porg_plant_material_source_data.material_id > material_master.material_id [ delete: no action, update: no action ]
+}
+
+Ref fk_news_porg_plant_material_source_data_purchasing_org_id_purchasing_organizations {
+	news_porg_plant_material_source_data.purchasing_org_id > purchasing_organizations.purchasing_org_id [ delete: no action, update: no action ]
+}
+
+Ref fk_news_porg_plant_material_source_data_supplier_id_supplier_master {
+	news_porg_plant_material_source_data.supplier_id > supplier_master.supplier_id [ delete: no action, update: no action ]
+}
+
+Ref fk_tile_cost_sheet_historical_current_supplier_plant_id_purchaser_plant_master {
+	tile_cost_sheet_historical_current_supplier.plant_id > purchaser_plant_master.plant_id [ delete: no action, update: no action ]
+}
+
+Ref fk_tile_cost_sheet_historical_current_supplier_material_id_material_master {
+	tile_cost_sheet_historical_current_supplier.material_id > material_master.material_id [ delete: no action, update: no action ]
+}
+
+Ref fk_tile_cost_sheet_historical_current_supplier_purchasing_org_id_purchasing_organizations {
+	tile_cost_sheet_historical_current_supplier.purchasing_org_id > purchasing_organizations.purchasing_org_id [ delete: no action, update: no action ]
+}
+
+Ref fk_tile_cost_sheet_historical_current_supplier_supplier_id_supplier_master {
+	tile_cost_sheet_historical_current_supplier.supplier_id > supplier_master.supplier_id [ delete: no action, update: no action ]
+}
+
+Ref fk_tile_cost_sheet_chemical_reaction_master_data_material_id_material_master {
+	tile_cost_sheet_chemical_reaction_master_data.material_id > material_master.material_id [ delete: no action, update: no action ]
+}
+
+Ref fk_purchase_history_transactional_data_material_id_material_master {
+	purchase_history_transactional_data.material_id > material_master.material_id [ delete: no action, update: no action ]
+}
+
+Ref fk_purchase_history_transactional_data_plant_id_purchaser_plant_master {
+	purchase_history_transactional_data.plant_id > purchaser_plant_master.plant_id [ delete: no action, update: no action ]
+}
+
+Ref fk_purchase_history_transactional_data_purchasing_org_id_purchasing_organizations {
+	purchase_history_transactional_data.purchasing_org_id > purchasing_organizations.purchasing_org_id [ delete: no action, update: no action ]
+}
+
+Ref fk_purchase_history_transactional_data_supplier_id_supplier_master {
+	purchase_history_transactional_data.supplier_id > supplier_master.supplier_id [ delete: no action, update: no action ]
+}
+
+Ref fk_material_synonyms_material_id_material_master {
+	material_synonyms.material_id > material_master.material_id [ delete: no action, update: no action ]
+}
+
+Ref fk_supplier_hierarchy_supplier_id_supplier_master {
+	supplier_hierarchy.supplier_id > supplier_master.supplier_id [ delete: no action, update: no action ]
+}
+
+Ref fk_supplier_hierarchy_parent_supplier_id_supplier_master {
+	supplier_hierarchy.parent_supplier_id > supplier_master.supplier_id [ delete: no action, update: no action ]
+}
+
+Ref fk_plant_to_port_mapping_master_plant_id_purchaser_plant_master {
+	plant_to_port_mapping_master.plant_id > purchaser_plant_master.plant_id [ delete: no action, update: no action ]
+}
+
+Ref fk_ocean_freight_master_destination_port_id_port_master {
+	ocean_freight_master.destination_port_id > port_master.port_id [ delete: no action, update: no action ]
+}
+
+Ref fk_User Master_User_ID_plant_material_purchase_org_supplier {
+	User Master.User_ID - plant_material_purchase_org_supplier.User_ID [ delete: no action, update: no action ]
+}
+
+Ref fk_User Master_User_ID_User_Purhase_Org {
+	User Master.User_ID < User_Purhase_Org.User_ID [ delete: no action, update: no action ]
+}
+
+Ref fk_plant_material_purchase_org_supplier_User_Purchase_Org_ID_User_Purhase_Org {
+	plant_material_purchase_org_supplier.User_Purchase_Org_ID - User_Purhase_Org.User_Purchase_Org_ID [ delete: no action, update: no action ]
+}
+
+Ref fk_company_currency_exchange_history_Purchase_Org_ID_purchasing_organizations {
+	company_currency_exchange_history.Purchase_Org_ID > purchasing_organizations.purchasing_org_id [ delete: no action, update: no action ]
+}
+
+Ref fk_Country_master_Country_Name_country_hsn_code_wise_duty_structure {
+	Country_master.Country_Name - country_hsn_code_wise_duty_structure.country_of_origin_all [ delete: no action, update: no action ]
+}
+
+Ref fk_Country_master_Country_Name_country_hsn_code_wise_duty_structure {
+	Country_master.Country_Name < country_hsn_code_wise_duty_structure.country_of_origin_all [ delete: no action, update: no action ]
+}
+
+Ref fk_Country_master_Country_Name_country_hsn_code_wise_duty_structure {
+	Country_master.Country_Name < country_hsn_code_wise_duty_structure.destination_country [ delete: no action, update: no action ]
+}

@@ -1,0 +1,381 @@
+
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>APOLLO ETL Run Report - 2025-09-18_170848</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .header { background-color: #f0f0f0; padding: 15px; border-radius: 5px; }
+                .success { color: green; font-weight: bold; }
+                .error { color: red; font-weight: bold; }
+                .warning { color: orange; font-weight: bold; }
+                table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+                .summary { margin: 20px 0; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>APOLLO Data Load Report</h1>
+                <p><strong>Run ID:</strong> 2025-09-18_170848</p>
+                <p><strong>Generated:</strong> 2025-09-18 18:09:33</p>
+            </div>
+        
+            <div class="summary">
+                <h2>Overall Status: <span class="warning">PARTIAL SUCCESS</span></h2>
+                <p><strong>Total Records Processed:</strong> 15162</p>
+                <p><strong>Successfully Loaded:</strong> 12224</p>
+                <p><strong>Rejected Records:</strong> 2938</p>
+                <p><strong>New Records Added:</strong> 0</p>
+                <p><strong>Existing Records Updated:</strong> 12224</p>
+            </div>
+        
+            <h2>Table-by-Table Results</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data Source</th>
+                        <th>Target Table</th>
+                        <th>Records Read</th>
+                        <th>Successfully Loaded</th>
+                        <th>Rejected</th>
+                        <th>New Records</th>
+                        <th>Updated Records</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+        
+                    <tr>
+                        <td>Currency_Master</td>
+                        <td>currency_master</td>
+                        <td>6</td>
+                        <td>6</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>6</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>Material_Type_Master</td>
+                        <td>material_type_master</td>
+                        <td>4</td>
+                        <td>4</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>4</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>supplier_master</td>
+                        <td>supplier_master</td>
+                        <td>1662</td>
+                        <td>1662</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>1662</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>UoM Master</td>
+                        <td>uom_master</td>
+                        <td>53</td>
+                        <td>53</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>53</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>Location_Type_Master</td>
+                        <td>location_type_master</td>
+                        <td>4</td>
+                        <td>4</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>4</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>Location Master</td>
+                        <td>location_master</td>
+                        <td>211</td>
+                        <td>211</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>211</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>Calendar_Master</td>
+                        <td>calendar_master</td>
+                        <td>3653</td>
+                        <td>3653</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>3653</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>frequency_master</td>
+                        <td>frequency_master</td>
+                        <td>7</td>
+                        <td>7</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>7</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>Repeat_Master</td>
+                        <td>repeat_master</td>
+                        <td>44</td>
+                        <td>44</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>44</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>purchasing_organizations</td>
+                        <td>purchasing_organizations</td>
+                        <td>2</td>
+                        <td>2</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>2</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>port_master</td>
+                        <td>port_master</td>
+                        <td>2</td>
+                        <td>2</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>2</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>material_master</td>
+                        <td>material_master</td>
+                        <td>669</td>
+                        <td>669</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>669</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>purchaser_plant_master</td>
+                        <td>purchaser_plant_master</td>
+                        <td>13</td>
+                        <td>13</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>13</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>pricing_source_master</td>
+                        <td>pricing_source_master</td>
+                        <td>1</td>
+                        <td>1</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>1</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>news_tags</td>
+                        <td>news_tags</td>
+                        <td>4</td>
+                        <td>4</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>4</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>pricing_type_master</td>
+                        <td>pricing_type_master</td>
+                        <td>8</td>
+                        <td>8</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>8</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>tile_cost_sheet_chemical_reacti</td>
+                        <td>tile_cost_sheet_chemical_reaction_master_data</td>
+                        <td>4</td>
+                        <td>4</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>4</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>currency_exchange_history</td>
+                        <td>currency_exchange_history</td>
+                        <td>3921</td>
+                        <td>3921</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>3921</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>uom_conversion</td>
+                        <td>uom_conversion</td>
+                        <td>46</td>
+                        <td>46</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>46</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>user_currency_preference</td>
+                        <td>user_currency_preference</td>
+                        <td>1</td>
+                        <td>1</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>1</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>incoterms_master</td>
+                        <td>incoterms_master</td>
+                        <td>11</td>
+                        <td>11</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>11</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>plant_material_purchase_org_sup</td>
+                        <td>plant_material_purchase_org_supplier</td>
+                        <td>4643</td>
+                        <td>1705</td>
+                        <td title="2938 rows rejected due to missing foreign key references">2938</td>
+                        <td>0</td>
+                        <td>1705</td>
+                        <td class="warning">⚠ PARTIAL</td>
+                    </tr>
+            
+                    <tr>
+                        <td>where_to_use_each_price_type</td>
+                        <td>where_to_use_each_price_type</td>
+                        <td>188</td>
+                        <td>188</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>188</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>forex_conversion_options_master</td>
+                        <td>forex_conversion_options_master</td>
+                        <td>4</td>
+                        <td>4</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>4</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                    <tr>
+                        <td>settings_user_material_category</td>
+                        <td>settings_user_material_category</td>
+                        <td>1</td>
+                        <td>1</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td>1</td>
+                        <td class="success">✓ SUCCESS</td>
+                    </tr>
+            
+                </tbody>
+            </table>
+        
+                <h2>Why Were Records Rejected?</h2>
+                <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                    <p><strong>For Business Users:</strong> The following explains exactly why records were rejected and what you need to do to fix them.</p>
+                </div>
+            
+                    <div style="border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 15px; background-color: #f8f9fa;">
+                        <h4>plant_material_purchase_org_sup → plant_material_purchase_org_supplier</h4>
+                        <p><strong>Rejected:</strong> 2938 out of 4643 records</p>
+                        <p><strong>Reason:</strong> 2938 rows rejected due to missing foreign key references</p>
+                        <div style="background-color: #e7f3ff; padding: 10px; border-radius: 3px; margin-top: 10px;">
+                            <strong>📋 Action Required:</strong>
+                            <ul style="margin: 5px 0;">
+                
+                                <li>Add the missing materials to your material_master sheet</li>
+                                <li>Ensure all material_ids in your data exist in the material_master sheet</li>
+                    
+                            </ul>
+                        </div>
+                    </div>
+                
+                <h2>Action Items - What Needs to be Fixed</h2>
+                <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                    <p><strong>For Business Users:</strong> The following issues need your attention to complete the data load successfully.</p>
+                </div>
+            
+                    <div style="border-left: 4px solid #dc3545; padding: 15px; margin-bottom: 15px; background-color: #f8f9fa;">
+                        <h4>plant_material_purchase_org_sup (Table: plant_material_purchase_org_supplier)</h4>
+                        <p><strong>Issue:</strong> Data Quality Issue: 2938 rows rejected due to missing foreign key references</p>
+                        <p><strong>Action Required: Review the rejected rows CSV file for specific issues.</strong></p>
+                    </div>
+                
+                <details style="margin-top: 30px;">
+                    <summary style="cursor: pointer; font-weight: bold; color: #6c757d;">Technical Details (Click to expand)</summary>
+                    <div style="margin-top: 10px; background-color: #f8f9fa; padding: 15px; border-radius: 5px;">
+                        <p><em>For technical staff and debugging purposes:</em></p>
+                        <ul>
+            <li><strong>material_master:</strong> Deduplicated 112 duplicate rows on keys ['material_id']</li><li><strong>plant_material_purchase_org_supplier:</strong> 2938 rows rejected due to missing foreign key references</li>
+                        </ul>
+                    </div>
+                </details>
+            
+            <div style="margin-top: 30px; padding: 15px; background-color: #f9f9f9; border-radius: 5px;">
+                <h3>What This Report Means:</h3>
+                <ul>
+                    <li><strong>Records Read:</strong> Total rows found in the Excel file</li>
+                    <li><strong>Successfully Loaded:</strong> Rows that passed validation and were loaded into the database</li>
+                    <li><strong>Rejected:</strong> Rows that had errors (missing data, wrong format, etc.) - check rejected CSV files for details</li>
+                    <li><strong>New Records:</strong> Rows that were inserted for the first time</li>
+                    <li><strong>Updated Records:</strong> Existing rows that were updated with new data</li>
+                </ul>
+            </div>
+        </body>
+        </html>
+        

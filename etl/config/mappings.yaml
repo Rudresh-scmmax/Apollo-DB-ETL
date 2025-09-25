@@ -1,0 +1,489 @@
+load_order:
+  masters:
+    - Currency_Master
+    - Material_Type_Master
+    - supplier_master
+    - UoM Master
+    - Location_Type_Master
+    - Location Master
+    - Calendar_Master
+    - frequency_master
+    - Repeat_Master
+    - purchasing_organizations
+    - port_master
+    - material_master
+    - purchaser_plant_master 
+    - pricing_source_master
+    - news_tags
+    - pricing_type_master
+    - tile_cost_sheet_chemical_reacti
+    - currency_exchange_history
+    - uom_conversion
+    - user_currency_preference
+    - incoterms_master
+    - plant_material_purchase_org_sup
+    - where_to_use_each_price_type
+    - forex_conversion_options_master
+    - settings_user_material_category
+  core: []
+  relationship: []
+  transactional: []
+
+tables:
+  Currency_Master:
+    target_table: currency_master
+    column_renames:
+      currency_id: currency_id
+      currency_name: currency_name
+      currency_desc: currency_desc
+    dtypes:
+      currency_id: int
+      currency_name: str
+      currency_desc: str
+    incremental:
+      strategy: business_key_upsert
+
+  Material_Type_Master:
+    target_table: material_type_master
+    column_renames:
+      material_type_master_id: material_type_master_id
+      material_type_master_desc: material_type_master_desc
+    dtypes:
+      material_type_master_id: int
+      material_type_master_desc: str
+    incremental:
+      strategy: business_key_upsert
+
+  supplier_master:
+    target_table: supplier_master
+    column_renames:
+      VENDOR_ID: supplier_id
+      VENDOR_NAME: supplier_name
+      COUNTRY: supplier_country
+      PAYMENT_CURRENCY_CODE: base_currency_accounting
+      STATE: relevant_country_region
+      NAME: user_defined_supplier_desc
+      PARTY_NUMBER: supplier_duns
+    dtypes:
+      supplier_id: str
+      supplier_name: str
+      supplier_country: str
+      base_currency_accounting: str
+      relevant_country_region: str
+      user_defined_supplier_desc: str
+      supplier_duns: str
+    incremental:
+      strategy: business_key_upsert
+
+  UoM Master:
+    target_table: uom_master
+    column_renames:
+      uom_id: uom_id
+      uom_name: uom_name
+      uom_symbol: uom_symbol
+      measurement_type: measurement_type
+      uom_system: uom_system
+      synonyms: synonyms
+    dtypes:
+      uom_id: int
+      uom_name: str
+      uom_symbol: str
+      measurement_type: str
+      uom_system: str
+      synonyms: str
+    incremental:
+      strategy: business_key_upsert
+
+  Location_Type_Master:
+    target_table: location_type_master
+    column_renames:
+      location_type_id: location_type_id
+      location_type_desc: location_type_desc
+    dtypes:
+      Location_type_id: int
+    location_type_desc: str
+    incremental:
+      strategy: business_key_upsert
+
+  Location Master:
+    target_table: location_master
+    column_renames:
+      location_Id: location_id
+      location_Name: location_name
+      location_Type: location_type_id
+    dtypes:
+      location_id: int
+      location_name: str
+      location_type_id: int
+    incremental:
+      strategy: business_key_upsert
+
+  Calendar_Master:
+    target_table: calendar_master
+    column_renames:
+      date: date
+      day: day
+      week: week
+      month: month
+      quarter: quarter
+      year: year
+      customer_specific_week: customer_specific_week
+      customer_specific_quarter: customer_specific_quarter
+    dtypes:
+      date: date
+      day: str
+      week: int
+      month: str
+      quarter: str
+      year: int
+      customer_specific_week: str
+      customer_specific_quarter: str
+    incremental:
+      strategy: business_key_upsert
+
+  frequency_master:
+    target_table: frequency_master
+    column_renames:
+      frequency_of_update_id: frequency_of_update_id
+      frequency_of_update_desc: frequency_of_update_desc
+    dtypes:
+      frequency_of_update_id: int
+      frequency_of_update_desc: str
+    incremental:
+      strategy: business_key_upsert
+
+  Repeat_Master:
+    target_table: repeat_master
+    column_renames:
+      repeat_master_id: repeat_master_id
+      frequency_of_update_id: frequency_of_update_id
+      frequency_of_update_desc: frequency_of_update_desc
+      repeat_choices: repeat_choices
+    dtypes:
+      repeat_master_id: int
+      frequency_of_update_id: int
+      frequency_of_update_desc: str
+      repeat_choices: str
+    incremental:
+      strategy: business_key_upsert
+
+  pricing_source_master:
+    target_table: pricing_source_master
+    column_renames:
+      source_of_price_id: source_of_price_id
+      source_of_price_name: source_of_price_name
+      credentials_api_key: credentials_api_key
+      user_id: user_id
+      hashed_pwd: hashed_pwd
+    dtypes:
+      source_of_price_id: int
+      source_of_price_name: str
+      credentials_api_key: str
+      user_id: str
+      hashed_pwd: str
+    incremental:
+      strategy: business_key_upsert
+
+  where_to_use_each_price_type:
+    target_table: where_to_use_each_price_type
+    column_renames:
+      porg_material_price_type_id: porg_material_price_type_id
+      material_id: material_id
+      purchasing_org_id: purchasing_org_id
+      price_type_id: price_type_id
+      use_in_cost_sheet: use_in_cost_sheet
+      use_in_price_benchmarking: use_in_price_benchmarking
+      use_in_spend_analytics: use_in_spend_analytics
+    dtypes:
+      porg_material_price_type_id: str
+      material_id: str
+      purchasing_org_id: str
+      price_type_id: str
+      use_in_cost_sheet: bool
+      use_in_price_benchmarking: bool
+      use_in_spend_analytics: bool
+    incremental:
+      strategy: business_key_upsert
+
+  news_tags:
+    target_table: news_tags
+    column_renames:
+      news_tag_id: news_tag_id
+      news_tag_description: news_tag_description
+      news_synonyms: news_synonyms
+    dtypes:
+      news_tag_id: int
+      news_tag_description: str
+      news_synonyms: str
+    incremental:
+      strategy: business_key_upsert
+
+  pricing_type_master:
+    target_table: pricing_type_master
+    column_renames:
+      price_type_id: price_type_id
+      price_type_desc: price_type_desc
+      source_of_price: source_of_price
+      frequency_of_update: frequency_of_update
+    dtypes:
+      price_type_id: int
+      price_type_desc: str
+      source_of_price: int
+      frequency_of_update: int
+    incremental:
+      strategy: business_key_upsert
+
+  tile_cost_sheet_chemical_reacti:
+    target_table: tile_cost_sheet_chemical_reaction_master_data
+    column_renames:
+      m_cr_rrm_id: m_cr_rrm_id
+      material_id: material_id
+      material_desc: material_desc
+      chemical_reaction_id: chemical_reaction_id
+      reaction_raw_material_id: reaction_raw_material_id
+      reaction_raw_material_desc: reaction_raw_material_desc
+      reaction_raw_material_cas_no: reaction_raw_material_cas_no
+      material_base_uom_id: material_base_uom_id
+      material_base_uom_name: material_base_uom_name
+      reaction_raw_material_base_uom_id: reaction_raw_material_base_uom_id
+      reaction_raw_material_base_uom_name: reaction_raw_material_base_uom_name
+      reaction_raw_material_1_consumption: reaction_raw_material_1_consumption
+      valid_from: valid_from
+      valid_to: valid_to
+    dtypes:
+      m_cr_rrm_id: str
+      material_id: str
+      material_desc: str
+      chemical_reaction_id: int
+      reaction_raw_material_id: str
+      reaction_raw_material_desc: str
+      reaction_raw_material_cas_no: str
+      material_base_uom_id: int
+      material_base_uom_name: str
+      reaction_raw_material_base_uom_id: int
+      reaction_raw_material_base_uom_name: str
+      reaction_raw_material_1_consumption: float
+      valid_from: date
+      valid_to: date
+    incremental:
+      strategy: business_key_upsert
+
+  currency_exchange_history:
+    target_table: currency_exchange_history
+    column_renames:
+      currency_exchange_purhcase_org_id: currency_exchange_id
+      from_currency: from_currency
+      to_currency: to_currency
+      date_from: date_from
+      date_to: date_to
+      multiplier: multiplier
+      purchase_org_id: purchase_org_id
+    dtypes:
+      currency_exchange_id: int
+      from_currency: str
+      to_currency: str
+      date_from: date
+      date_to: date
+      multiplier: float
+      purchase_org_id: str
+    incremental:
+      strategy: business_key_upsert
+
+  user_currency_preference:
+    target_table: user_currency_preference
+    column_renames:
+      user_id: user_id
+      user_preferred_currency: user_preferred_currency
+    dtypes:
+      user_id: int
+      user_preferred_currency: str
+    incremental:
+      strategy: business_key_upsert
+
+  incoterms_master:
+    target_table: incoterms_master
+    column_renames:
+      incoterm_id: incoterm_id
+      inco_term_name: inco_term_name  
+      inco_term_desc: inco_term_desc
+      transport_modes_where_used: transport_modes_where_used
+      packaging_charges: packaging_charges
+      loading_charges: loading_charges
+      delivery_to_port: delivery_to_port
+      export_duty_taxes: export_duty_taxes
+      origin_terminal_charges: origin_terminal_charges
+      loading_on_carriage: loading_on_carriage
+      carriage_freight_charges: carriage_freight_charges
+      insurance: insurance
+      destination_terminal_charges: destination_terminal_charges
+      delivery_to_destination_charge: delivery_to_destination_charge
+      import_duty_taxes: import_duty_taxes
+    dtypes:
+      incoterm_id: int
+      inco_term_name: str
+      inco_term_desc: str
+      transport_modes_where_used: str
+      packaging_charges: str
+      loading_charges: str
+      delivery_to_port: str
+      export_duty_taxes: str
+      origin_terminal_charges: str
+      loading_on_carriage: str
+      carriage_freight_charges: str
+      insurance: str
+      destination_terminal_charges: str
+      delivery_to_destination_charge: str
+      import_duty_taxes: str
+    incremental:
+      strategy: business_key_upsert
+
+  plant_material_purchase_org_sup:
+    target_table: plant_material_purchase_org_supplier
+    column_renames:
+      porg_plant_material_id: porg_plant_material_id
+      plant_id: plant_id
+      material_id: material_id
+      purchasing_org_id: purchasing_org_id
+      User_ID: User_ID
+      supplier_id: supplier_id
+      valid_from: valid_from
+      valid_to: valid_to
+      User_Purchase_Org_ID: User_Purchase_Org_ID
+    dtypes:
+      porg_plant_material_id: str
+      plant_id: str
+      material_id: str
+      purchasing_org_id: str
+      User_ID: int
+      supplier_id: str
+      valid_from: date
+      valid_to: date
+      User_Purchase_Org_ID: int
+    incremental:
+      strategy: business_key_upsert
+
+  forex_conversion_options_master:
+    target_table: forex_conversion_options_master
+    column_renames:
+      forex_conversion_id: forex_conversion_id
+      forex_conversion_method: forex_conversion_method
+    dtypes:
+      forex_conversion_id: int
+      forex_conversion_method: str
+    incremental:
+      strategy: business_key_upsert
+
+  settings_user_material_category:
+    target_table: settings_user_material_category
+    column_renames:
+      user_material_category_id: user_material_category_id
+      user_id: user_id
+      tile_market_research_summary_length: tile_market_research_summary_length
+      material_category: material_category
+      tile_news_preferred_sources: tile_news_preferred_sources
+      tile_cost_sheet_price_history_window: tile_cost_sheet_price_history_window
+      tile_cost_sheet_periods: tile_cost_sheet_periods
+      tile_cost_sheet_cost_calculation: tile_cost_sheet_cost_calculation
+      tile_cost_sheet_forex_values: tile_cost_sheet_forex_values
+    dtypes:
+      user_material_category_id: str
+      user_id: str
+      tile_market_research_summary_length: str
+      material_category: str
+      tile_news_preferred_sources: str
+      tile_cost_sheet_price_history_window: str
+      tile_cost_sheet_periods: str
+      tile_cost_sheet_cost_calculation: str
+      tile_cost_sheet_forex_values: str
+    incremental:
+      strategy: business_key_upsert
+
+  purchasing_organizations:
+    target_table: purchasing_organizations
+    column_renames:
+      purchasing_org_id: purchasing_org_id
+      purchasing_org_desc: purchasing_org_desc
+    dtypes:
+      purchasing_org_id: str
+      purchasing_org_desc: str
+    incremental:
+      strategy: business_key_upsert
+
+  port_master:
+    target_table: port_master
+    column_renames:
+      port_id: port_id
+      port: port
+    dtypes:
+      port_id: int
+      port: str
+    incremental:
+      strategy: business_key_upsert
+
+  material_master:
+    target_table: material_master
+    column_renames:
+      material_id: material_id
+      material_description: material_description
+      user_defined_material_desc: user_defined_material_desc
+      material_type: material_type_id
+      material_status: material_status
+      material_category: material_category
+      base_uom_id: base_uom_id
+      cas_no: cas_no
+      unspsc_code: unspsc_code
+      hsn_code: hsn_code
+    dtypes:
+      material_id: str
+      material_description: str
+      user_defined_material_desc: str
+      material_type_id: int
+      material_status: str
+      material_category: str
+      base_uom_id: int
+      cas_no: str
+      unspsc_code: str
+      hsn_code: str
+    incremental:
+      strategy: business_key_upsert
+
+  purchaser_plant_master:
+    target_table: purchaser_plant_master
+    column_renames:
+      plant_id: plant_id
+      plant_name: plant_name
+      plant_country: plant_country
+      base_currency_accounting: base_currency_accounting
+      special_economic_zone: special_economic_zone
+      nearest_port: nearest_port
+      logistic_cost_per_container: logistic_cost_per_container
+    dtypes:
+      plant_id: str
+      plant_name: str
+      plant_country: str
+      base_currency_accounting: str
+      special_economic_zone: bool
+      nearest_port: str
+      logistic_cost_per_container: int
+    incremental:
+      strategy: business_key_upsert
+
+  uom_conversion:
+    target_table: uom_conversion
+    column_renames:
+      id: id
+      from_uom_name: from_uom_name
+      to_uom_name: to_uom_name
+      what_does_it_measure: what_does_it_measure
+      conversion_factor: conversion_factor
+      syn: syn
+    dtypes:
+      id: int
+      from_uom_name: str
+      to_uom_name: str
+      what_does_it_measure: str
+      conversion_factor: float
+      syn: str
+    incremental:
+      strategy: business_key_upsert
+
