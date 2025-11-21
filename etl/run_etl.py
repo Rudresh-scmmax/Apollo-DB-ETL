@@ -1,3 +1,4 @@
+#run_etl.py
 from __future__ import annotations
 
 import argparse
@@ -46,6 +47,23 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def parse_args_from(argv: list[str]) -> argparse.Namespace:
+    """Custom parser for when argv is passed programmatically."""
+    parser = argparse.ArgumentParser(description="APOLLO ETL: Excel → Postgres over SSH tunnel")
+    parser.add_argument("--tables", type=str, default="")
+    parser.add_argument("--category", type=str, choices=["masters", "core", "relationship", "transactional", "all"], default="all")
+    parser.add_argument("--mode", type=str, choices=["initial", "incremental"], default="initial")
+    parser.add_argument("--excel", type=str, required=True)
+    parser.add_argument("--mappings", type=str, default=os.path.join(os.path.dirname(__file__), "config", "mappings.yaml"))
+    parser.add_argument("--tables-config", type=str, default=os.path.join(os.path.dirname(__file__), "config", "tables.yaml"))
+    parser.add_argument("--reports-dir", type=str, required=True)
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--create-schema", action="store_true")
+    parser.add_argument("--schema-only", action="store_true")
+    parser.add_argument("--force-schema", action="store_true")
+    return parser.parse_args(argv)
+
+
 def resolve_worklist(args: argparse.Namespace, mappings: dict) -> List[str]:
     if args.tables:
         return [t.strip() for t in args.tables.split(",") if t.strip()]
@@ -57,14 +75,19 @@ def resolve_worklist(args: argparse.Namespace, mappings: dict) -> List[str]:
     return list(mappings.get("load_order", {}).get(args.category, []))
 
 
-def main():
+
+def main(argv: list[str] | None = None):
+    """Entry point for ETL. Accepts sys.argv style list for programmatic use."""
     load_dotenv()  # .env optional
-    args = parse_args()
+    args = parse_args() if argv is None else parse_args_from(argv)
+
+    print(f"[ETL] Starting run with mode={args.mode}, excel={args.excel}")
 
     mappings = load_yaml(args.mappings)
     tables_conf = load_yaml(args.tables_config)
 
     worklist = resolve_worklist(args, mappings)
+    print(f"[ETL] Worklist resolved: {worklist}")
     if not worklist:
         print("Nothing to load: check --tables or --category and mappings.yaml")
         sys.exit(1)
@@ -74,25 +97,24 @@ def main():
     reporter = RunReporter(args.reports_dir, run_id)
 
     # Database connection
-    print("Connecting to database...")
+    print("[ETL] Connecting to database...")
     engine = get_engine()
     
     # Handle schema creation if requested
     with engine.begin() as conn:
         if args.create_schema or args.schema_only or args.force_schema:
-            print("Setting up database schema...")
+            print("[ETL] Setting up database schema...")
             schema_created = ensure_database_schema(conn, force_recreate=args.force_schema)
             if not schema_created:
-                print("ERROR: Failed to create database schema")
+                print("[ETL] ERROR: Failed to create database schema")
                 sys.exit(3)
             
-            # Show schema info
             schema_info = get_schema_info(conn)
             if 'error' not in schema_info:
-                print(f"Database ready with {schema_info['table_count']} tables")
+                print(f"[ETL] Database ready with {schema_info['table_count']} tables")
             
             if args.schema_only:
-                print("Schema creation complete. Exiting (--schema-only mode)")
+                print("[ETL] Schema creation complete. Exiting (--schema-only mode)")
                 return
         
         # Ensure we can introspect PKs
@@ -100,6 +122,7 @@ def main():
 
     # Process each sheet in the worklist
     for sheet_name in worklist:
+        print(f"--- Processing sheet: {sheet_name} ---")
         cfg = mappings.get("tables", {}).get(sheet_name, {})
         target_table = cfg.get("target_table", sheet_name)
         column_renames: Dict[str, str] = cfg.get("column_renames", {})
@@ -111,6 +134,7 @@ def main():
                 _, _, bucket, *key_parts = args.excel.split("/")
                 key = "/".join(key_parts)
                 args.excel = download_excel_from_s3(bucket, key)
+            print(f"Reading sheet {sheet_name} from {args.excel}")
             df = read_sheet(args.excel, sheet_name)
             df = clean_dataframe(df)
             if column_renames:
