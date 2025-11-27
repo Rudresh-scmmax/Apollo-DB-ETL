@@ -25,9 +25,58 @@ load_order:
     - where_to_use_each_price_type
     - forex_conversion_options_master
     - settings_user_material_category
+    - country_master
+    - user_master
+    - chemical_raw_material_synonyms
   core: []
-  relationship: []
-  transactional: []
+  relationship:
+    - user_purchase_org
+    - company_currency_exchange_history
+    - country_hsn_code_wise_duty_structure
+    - country_tariffs
+    - ocean_freight_master
+    - plant_to_port_mapping_master
+    - supplier_hierarchy
+  transactional:
+    - action_plans
+    - audit_snapshot_price_prediction_negotiation
+    - demand_supply_summary
+    - demand_supply_trends
+    - esg_tracker
+    - export_data
+    - fact_pack
+    - forecast_recommendations
+    - import_data
+    - inventory_levels
+    - joint_development_projects
+    - material_research_reports
+    - material_supplier_general_intelligence
+    - material_synonyms
+    - meeting_minutes
+    - multiple_point_engagements
+    - negotiation_llm_logs
+    - negotiation_recommendations
+    - news_insights
+    - news_porg_plant_material_source_data
+    - plan_assignments
+    - porters_analysis
+    - price_data_country_storage
+    - price_forecast_data
+    - price_history_data
+    - procurement_plans
+    - purchase_history_transactional_data
+    - quote_comparison
+    - reach_tracker
+    - region_hierarchy
+    - settings_user_material_category_tile_preferences
+    - supplier_shutdowns
+    - supplier_tracking
+    - tile_cost_sheet_historical_current_supplier
+    - tile_multiple_point_engagements
+    - tile_vendor_minutes_of_meeting
+    - vendor_key_information
+    - vendor_wise_action_plan
+    - market_research_status
 
 tables:
   Currency_Master:
@@ -59,16 +108,23 @@ tables:
     column_renames:
       VENDOR_ID: supplier_id
       VENDOR_NAME: supplier_name
-      COUNTRY: supplier_country
-      PAYMENT_CURRENCY_CODE: base_currency_accounting
+      SUPPLIER_PLANT_NAME: supplier_plant_name
+      SUPPLIER_STATUS: supplier_status
+      COUNTRY: supplier_country_name
+      SUPPLIER_COUNTRY_ID: supplier_country_id
+      PAYMENT_CURRENCY_CODE: base_currency_id
+      BASE_CURRENCY_ID: base_currency_id
       STATE: relevant_country_region
       NAME: user_defined_supplier_desc
       PARTY_NUMBER: supplier_duns
     dtypes:
-      supplier_id: str
+      supplier_id: int
       supplier_name: str
-      supplier_country: str
-      base_currency_accounting: str
+      supplier_plant_name: str
+      supplier_status: str
+      supplier_country_id: int
+      supplier_country_name: str
+      base_currency_id: int
       relevant_country_region: str
       user_defined_supplier_desc: str
       supplier_duns: str
@@ -90,7 +146,7 @@ tables:
       uom_symbol: str
       measurement_type: str
       uom_system: str
-      synonyms: str
+      synonyms: dict
     incremental:
       strategy: business_key_upsert
 
@@ -163,7 +219,7 @@ tables:
       repeat_master_id: int
       frequency_of_update_id: int
       frequency_of_update_desc: str
-      repeat_choices: str
+      repeat_choices: dict
     incremental:
       strategy: business_key_upsert
 
@@ -189,19 +245,41 @@ tables:
     column_renames:
       porg_material_price_type_id: porg_material_price_type_id
       material_id: material_id
+      material_description: material_description
       purchasing_org_id: purchasing_org_id
       price_type_id: price_type_id
+      price_type_desc: price_type_desc
+      source_of_price_id: source_of_price_id
+      data_series_to_extract_from_source: data_series_to_extract_from_source
+      frequency_of_update_id: frequency_of_update_id
+      repeat_choice: repeat_choice
+      data_series_pricing_market: data_series_pricing_market
+      data_series_incoterm: data_series_incoterm
+      data_series_currency: data_series_currency
+      data_series_uom: data_series_uom
       use_in_cost_sheet: use_in_cost_sheet
       use_in_price_benchmarking: use_in_price_benchmarking
       use_in_spend_analytics: use_in_spend_analytics
+      last_updated_on: last_updated_on
     dtypes:
       porg_material_price_type_id: str
       material_id: str
+      material_description: str
       purchasing_org_id: str
-      price_type_id: str
-      use_in_cost_sheet: bool
-      use_in_price_benchmarking: bool
-      use_in_spend_analytics: bool
+      price_type_id: int
+      price_type_desc: str
+      source_of_price_id: int
+      data_series_to_extract_from_source: str
+      frequency_of_update_id: int
+      repeat_choice: str
+      data_series_pricing_market: str
+      data_series_incoterm: str
+      data_series_currency: str
+      data_series_uom: str
+      use_in_cost_sheet: str
+      use_in_price_benchmarking: str
+      use_in_spend_analytics: str
+      last_updated_on: date
     incremental:
       strategy: business_key_upsert
 
@@ -228,8 +306,8 @@ tables:
     dtypes:
       price_type_id: int
       price_type_desc: str
-      source_of_price: int
-      frequency_of_update: int
+      source_of_price: str
+      frequency_of_update: str
     incremental:
       strategy: business_key_upsert
 
@@ -342,23 +420,39 @@ tables:
     column_renames:
       porg_plant_material_id: porg_plant_material_id
       plant_id: plant_id
+      PLANT_ID: plant_id
+      plant_name: plant_name
+      PLANT_NAME: plant_name
       material_id: material_id
+      material_name: material_name
+      MATERIAL_NAME: material_name
       purchasing_org_id: purchasing_org_id
-      User_ID: User_ID
+      user_id: user_id
+      User_ID: user_id
       supplier_id: supplier_id
+      SUPPLIER_ID: supplier_id
+      supplier_name: supplier_name
+      SUPPLIER_NAME: supplier_name
+      supplier_plant: supplier_plant
+      SUPPLIER_PLANT: supplier_plant
       valid_from: valid_from
       valid_to: valid_to
-      User_Purchase_Org_ID: User_Purchase_Org_ID
+      user_purchase_org_id: user_purchase_org_id
+      User_Purchase_Org_ID: user_purchase_org_id
     dtypes:
       porg_plant_material_id: str
-      plant_id: str
+      plant_id: int
+      plant_name: str
       material_id: str
+      material_name: str
       purchasing_org_id: str
-      User_ID: int
-      supplier_id: str
+      user_id: int
+      supplier_id: int
+      supplier_name: str
+      supplier_plant: str
       valid_from: date
       valid_to: date
-      User_Purchase_Org_ID: int
+      user_purchase_org_id: int
     incremental:
       strategy: business_key_upsert
 
@@ -387,7 +481,7 @@ tables:
       tile_cost_sheet_forex_values: tile_cost_sheet_forex_values
     dtypes:
       user_material_category_id: str
-      user_id: str
+      user_id: int
       tile_market_research_summary_length: str
       material_category: str
       tile_news_preferred_sources: str
@@ -403,9 +497,11 @@ tables:
     column_renames:
       purchasing_org_id: purchasing_org_id
       purchasing_org_desc: purchasing_org_desc
+      org_code: org_code
     dtypes:
-      purchasing_org_id: str
+      purchasing_org_id: int
       purchasing_org_desc: str
+      org_code: str
     incremental:
       strategy: business_key_upsert
 
@@ -414,9 +510,11 @@ tables:
     column_renames:
       port_id: port_id
       port: port
+      freight_mode: freight_mode
     dtypes:
       port_id: int
       port: str
+      freight_mode: str
     incremental:
       strategy: business_key_upsert
 
@@ -452,19 +550,16 @@ tables:
     column_renames:
       plant_id: plant_id
       plant_name: plant_name
-      plant_country: plant_country
+      plant_country: plant_country_code
+      PLANT_COUNTRY_CODE: plant_country_code
       base_currency_accounting: base_currency_accounting
       special_economic_zone: special_economic_zone
-      nearest_port: nearest_port
-      logistic_cost_per_container: logistic_cost_per_container
     dtypes:
-      plant_id: str
+      plant_id: int
       plant_name: str
-      plant_country: str
+      plant_country_code: str
       base_currency_accounting: str
-      special_economic_zone: bool
-      nearest_port: str
-      logistic_cost_per_container: int
+      special_economic_zone: str
     incremental:
       strategy: business_key_upsert
 
@@ -486,4 +581,282 @@ tables:
       syn: str
     incremental:
       strategy: business_key_upsert
+
+  # New Master Tables
+  country_master:
+    target_table: country_master
+    column_renames:
+      country_id: country_id
+      country_code: country_code
+      country_name: country_name
+    dtypes:
+      country_id: int
+      country_code: str
+      country_name: str
+    incremental:
+      strategy: business_key_upsert
+
+  user_master:
+    target_table: user_master
+    column_renames:
+      user_id: user_id
+      user_email: user_email
+      user_password: user_password
+      role: role
+    dtypes:
+      user_id: int
+      user_email: str
+      user_password: str
+      role: str
+    incremental:
+      strategy: business_key_upsert
+
+  chemical_raw_material_synonyms:
+    target_table: chemical_raw_material_synonyms
+    column_renames:
+      material_synonym_id: material_synonym_id
+      material_id_or_reaction_raw_mat: material_id_or_reaction_raw_mat
+      synonym_name: synonym_name
+    dtypes:
+      material_synonym_id: str
+      material_id_or_reaction_raw_mat: str
+      synonym_name: str
+    incremental:
+      strategy: business_key_upsert
+
+  # New Relationship Tables
+  user_purchase_org:
+    target_table: user_purchase_org
+    column_renames:
+      user_purchase_org_id: user_purchase_org_id
+      purchase_org_id: purchase_org_id
+      user_id: user_id
+    dtypes:
+      user_purchase_org_id: int
+      purchase_org_id: str
+      user_id: int
+    incremental:
+      strategy: business_key_upsert
+
+  company_currency_exchange_history:
+    target_table: company_currency_exchange_history
+    column_renames:
+      currency_exchange_purchase_org_id: currency_exchange_purchase_org_id
+      from_currency: from_currency
+      to_currency: to_currency
+      date_from: date_from
+      date_to: date_to
+      multiplier: multiplier
+      purchase_org_id: purchase_org_id
+    dtypes:
+      currency_exchange_purchase_org_id: int
+      from_currency: str
+      to_currency: str
+      date_from: date
+      date_to: date
+      multiplier: float
+      purchase_org_id: int
+    incremental:
+      strategy: business_key_upsert
+
+  country_hsn_code_wise_duty_structure:
+    target_table: country_hsn_code_wise_duty_structure
+    column_renames:
+      id: id
+      hsn_code: hsn_code
+      destination_country_code: destination_country_code
+      net_duty: net_duty
+      country_of_origin_all_code: country_of_origin_all_code
+    dtypes:
+      id: int
+      hsn_code: str
+      destination_country_code: str
+      net_duty: float
+      country_of_origin_all_code: str
+    incremental:
+      strategy: business_key_upsert
+
+  country_tariffs:
+    target_table: country_tariffs
+    column_renames:
+      id: id
+      country_id: country_id
+      tariff_percentage: tariff_percentage
+      created_at: created_at
+    dtypes:
+      id: int
+      country_id: int
+      tariff_percentage: float
+      created_at: date
+    incremental:
+      strategy: business_key_upsert
+
+  ocean_freight_master:
+    target_table: ocean_freight_master
+    column_renames:
+      ocean_freight_id: ocean_freight_id
+      source_port_id: source_port_id
+      destination_port_id: destination_port_id
+      freight_cost: freight_cost
+      freight_cost_currency: freight_cost_currency
+    dtypes:
+      ocean_freight_id: int
+      source_port_id: int
+      destination_port_id: int
+      freight_cost: float
+      freight_cost_currency: str
+    incremental:
+      strategy: business_key_upsert
+
+  plant_to_port_mapping_master:
+    target_table: plant_to_port_mapping_master
+    column_renames:
+      plant_port_id: plant_port_id
+      plant_id: plant_id
+      plant_name: plant_name
+      port_id: port_id
+      port_name: port_name
+      port_country_code: port_country_code
+      preferred_port: preferred_port
+    dtypes:
+      plant_port_id: str
+      plant_id: int
+      plant_name: str
+      port_id: int
+      port_name: str
+      port_country_code: str
+      preferred_port: bool
+    incremental:
+      strategy: business_key_upsert
+
+  supplier_hierarchy:
+    target_table: supplier_hierarchy
+    column_renames:
+      supplier_hierarchy_id: supplier_hierarchy_id
+      supplier_id: supplier_id
+      parent_supplier_id: parent_supplier_id
+    dtypes:
+      supplier_hierarchy_id: int
+      supplier_id: int
+      parent_supplier_id: int
+    incremental:
+      strategy: business_key_upsert
+
+  # New Transactional Tables - Basic configurations
+  # Note: These may need additional column mappings based on your Excel structure
+  action_plans:
+    target_table: action_plans
+    column_renames: {}
+    dtypes:
+      id: int
+      title: str
+      material_id: str
+      created_by: int
+      created_at: date
+      updated_at: date
+      description: str
+    incremental:
+      strategy: business_key_upsert
+
+  purchase_history_transactional_data:
+    target_table: purchase_history_transactional_data
+    column_renames: {}
+    dtypes:
+      purchase_transaction_id: str
+      purchasing_org_id: int
+      material_id: str
+      plant_id: int
+      supplier_id: int
+      po_number: int
+      purchase_date: date
+      currency_of_po: str
+      uom: str
+      quantity: float
+      cost_per_uom: float
+      total_cost: float
+      payment_terms: str
+      freight_terms: str
+      transaction_posting_date: date
+      buyer_name: str
+    incremental:
+      strategy: business_key_upsert
+
+  price_history_data:
+    target_table: price_history_data
+    column_renames: {}
+    dtypes:
+      material_price_type_period_id: str
+      material_id: str
+      period_start_date: date
+      period_end_date: date
+      country: str
+      price: float
+      price_currency: str
+      price_history_source: str
+      price_type: str
+      location_id: int
+      uom: str
+    incremental:
+      strategy: business_key_upsert
+
+  quote_comparison:
+    target_table: quote_comparison
+    column_renames: {}
+    dtypes:
+      id: int
+      material_id: str
+      supplier_id: int
+      price_per_unit: float
+      currency_id: int
+      country_id: int
+      quote_date: date
+      user_id: int
+      pdf_key: str
+      batch_id: str
+      created_at: date
+    incremental:
+      strategy: business_key_upsert
+
+  # Additional transactional tables - Add column mappings as needed
+  # These are basic templates that should be customized based on Excel structure
+  export_data:
+    target_table: export_data
+    column_renames: {}
+    dtypes:
+      id: int
+      material_id: str
+      location_id: int
+      month_year: str
+      hsn_code: str
+      price_per_quantity: float
+      quantity: float
+      uom: str
+      currency: str
+      source: str
+      created_at: date
+      updated_at: date
+    incremental:
+      strategy: business_key_upsert
+
+  import_data:
+    target_table: import_data
+    column_renames: {}
+    dtypes:
+      id: int
+      material_id: str
+      location_id: int
+      month_year: str
+      hsn_code: str
+      price_per_quantity: float
+      quantity: float
+      uom: str
+      currency: str
+      source: str
+      created_at: date
+      updated_at: date
+    incremental:
+      strategy: business_key_upsert
+
+  # Note: Remaining transactional tables need column mappings based on Excel structure
+  # Add them following the same pattern as above
 

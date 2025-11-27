@@ -145,6 +145,7 @@ def apply_uom_conversion_transforms(df: pd.DataFrame) -> pd.DataFrame:
 def map_purchasing_org_name_to_id(df: pd.DataFrame, excel_path: str) -> pd.DataFrame:
     """Map purchasing_org_id values that are names/descriptions to their numeric/string IDs
     using the `purchasing_organizations` sheet. Leaves values as-is if already IDs.
+    Returns string values (for plant_material_purchase_org_supplier which uses String(20)).
     """
     if 'purchasing_org_id' not in df.columns:
         return df
@@ -170,15 +171,26 @@ def map_purchasing_org_name_to_id(df: pd.DataFrame, excel_path: str) -> pd.DataF
         if desc_col:
             mapping = porg[[desc_col, id_col]].dropna().drop_duplicates().set_index(desc_col)[id_col].to_dict()
 
+        # Get all valid IDs as strings for comparison
+        valid_ids_str = set(porg[id_col].astype(str))
+        # Also get as integers if the column is numeric
+        try:
+            valid_ids_int = set(porg[id_col].astype(int).astype(str))
+            valid_ids_str.update(valid_ids_int)
+        except (ValueError, TypeError):
+            pass
+
         def _map_val(val):
             if pd.isna(val) or val in ("", "nan", "NaN"):
                 return None
             s = str(val).strip()
-            # If it already matches an existing ID in the sheet, keep it
-            if s in set(porg[id_col].astype(str)):
+            # If it already matches an existing ID in the sheet, keep it as string
+            if s in valid_ids_str:
                 return s
             # Otherwise try mapping by description/name
-            return str(mapping.get(s, s))
+            mapped = mapping.get(s, s)
+            # Return as string (for plant_material_purchase_org_supplier which uses String(20))
+            return str(mapped) if mapped is not None else None
 
         df['purchasing_org_id'] = df['purchasing_org_id'].apply(_map_val)
         return df
@@ -294,6 +306,21 @@ def coerce_types_for_table(df: pd.DataFrame, types_cfg: Dict[str, str]) -> Tuple
                     rec[col] = int(str(val).replace(",", ""))
                 elif want == 'float':
                     rec[col] = float(str(val).replace(",", ""))
+                elif want == 'dict':
+                    # Handle JSON/dict types - if already a dict, convert to JSON string
+                    # If it's already a JSON string, keep it as is
+                    if isinstance(val, dict):
+                        rec[col] = json.dumps(val)
+                    elif isinstance(val, str):
+                        # If it's already a JSON string, validate it
+                        try:
+                            json.loads(val)  # Validate JSON
+                            rec[col] = val
+                        except (json.JSONDecodeError, TypeError):
+                            # If not valid JSON, try to parse as comma-separated and convert
+                            rec[col] = convert_to_json_array(val)
+                    else:
+                        rec[col] = convert_to_json_array(str(val))
                 elif want == 'date':
                     # Handle extreme dates that cause overflow
                     try:

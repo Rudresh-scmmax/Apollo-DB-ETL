@@ -39,6 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--excel", type=str, default=os.getenv("EXCEL_PATH", "Data Model + Tables + Data_processed.xlsx"))
     parser.add_argument("--mappings", type=str, default=os.path.join(os.path.dirname(__file__), "config", "mappings.yaml"))
     parser.add_argument("--tables-config", type=str, default=os.path.join(os.path.dirname(__file__), "config", "tables.yaml"))
+    parser.add_argument("--models-path", type=str, help="Path to models.py file. If provided, uses models instead of YAML for schema info.")
     parser.add_argument("--reports-dir", type=str, default=os.getenv("REPORTS_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports")))
     parser.add_argument("--dry-run", action="store_true", help="Validate only, no writes")
     parser.add_argument("--create-schema", action="store_true", help="Create database schema if it doesn't exist")
@@ -56,6 +57,7 @@ def parse_args_from(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--excel", type=str, required=True)
     parser.add_argument("--mappings", type=str, default=os.path.join(os.path.dirname(__file__), "config", "mappings.yaml"))
     parser.add_argument("--tables-config", type=str, default=os.path.join(os.path.dirname(__file__), "config", "tables.yaml"))
+    parser.add_argument("--models-path", type=str, help="Path to models.py file. If provided, uses models instead of YAML for schema info.")
     parser.add_argument("--reports-dir", type=str, required=True)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--create-schema", action="store_true")
@@ -83,8 +85,35 @@ def main(argv: list[str] | None = None):
 
     print(f"[ETL] Starting run with mode={args.mode}, excel={args.excel}")
 
+    # Load models if provided, otherwise use YAML
+    models_module = None
+    if args.models_path:
+        from .models_loader import load_models_module
+        print(f"[ETL] Loading models from: {args.models_path}")
+        models_module = load_models_module(args.models_path)
+        print(f"[ETL] Models loaded successfully")
+
     mappings = load_yaml(args.mappings)
-    tables_conf = load_yaml(args.tables_config)
+    
+    # If using models, merge schema info from models into mappings
+    if models_module:
+        from .models_loader import get_etl_config_from_models
+        models_config = get_etl_config_from_models(models_module)
+        
+        # Merge: Use YAML for Excel mappings (column_renames, load_order)
+        # But use models for dtypes and table structure
+        for table_name, table_config in models_config['mappings']['tables'].items():
+            if table_name in mappings.get('tables', {}):
+                # Merge: Keep YAML column_renames, but update dtypes from models
+                mappings['tables'][table_name]['dtypes'] = table_config['dtypes']
+            else:
+                # Add new table from models
+                mappings.setdefault('tables', {})[table_name] = table_config
+        
+        # Use models for primary keys instead of YAML
+        tables_conf = models_config['tables']
+    else:
+        tables_conf = load_yaml(args.tables_config)
 
     worklist = resolve_worklist(args, mappings)
     print(f"[ETL] Worklist resolved: {worklist}")
@@ -117,8 +146,8 @@ def main(argv: list[str] | None = None):
                 print("[ETL] Schema creation complete. Exiting (--schema-only mode)")
                 return
         
-        # Ensure we can introspect PKs
-        pk_map = get_primary_keys(conn)
+        # Ensure we can introspect PKs (use models if available)
+        pk_map = get_primary_keys(conn, models_module)
 
     # Process each sheet in the worklist
     for sheet_name in worklist:

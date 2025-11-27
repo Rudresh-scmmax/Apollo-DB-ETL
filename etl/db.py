@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional, Any
 
 from sqlalchemy import create_engine as sa_create_engine, text
 from sqlalchemy.engine import Engine, Connection
@@ -22,7 +22,25 @@ def get_engine() -> Engine:
     return sa_create_engine(dsn, pool_pre_ping=True)
 
 
-def get_primary_keys(conn: Connection) -> Dict[str, List[str]]:
+def get_primary_keys(conn: Connection, models_module: Optional[Any] = None) -> Dict[str, List[str]]:
+    """Get primary keys from database or from models if provided.
+    
+    Args:
+        conn: Database connection
+        models_module: Optional SQLAlchemy models module. If provided, uses models instead of querying DB.
+    
+    Returns:
+        Dict mapping table_name -> list of primary key column names
+    """
+    # If models provided, use them (faster and more reliable)
+    if models_module:
+        try:
+            from .models_utils import get_primary_keys_dict_from_models
+            return get_primary_keys_dict_from_models(models_module)
+        except Exception as e:
+            print(f"Warning: Could not load primary keys from models: {e}. Falling back to database query.")
+    
+    # Fallback to database query
     sql = text(
         """
         SELECT tc.table_name,
@@ -42,7 +60,28 @@ def get_primary_keys(conn: Connection) -> Dict[str, List[str]]:
     return pk_map
 
 
-def get_table_columns(conn: Connection, table_name: str) -> List[str]:
+def get_table_columns(conn: Connection, table_name: str, models_module: Optional[Any] = None) -> List[str]:
+    """Get table columns from database or from models if provided.
+    
+    Args:
+        conn: Database connection
+        table_name: Name of the table
+        models_module: Optional SQLAlchemy models module. If provided, uses models instead of querying DB.
+    
+    Returns:
+        List of column names
+    """
+    # If models provided, use them
+    if models_module:
+        try:
+            from .models_utils import get_all_models_from_module, get_table_columns_from_model
+            models = get_all_models_from_module(models_module)
+            if table_name in models:
+                return get_table_columns_from_model(models[table_name])
+        except Exception as e:
+            print(f"Warning: Could not load columns from models: {e}. Falling back to database query.")
+    
+    # Fallback to database query
     sql = text(
         """
         SELECT column_name

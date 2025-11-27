@@ -73,4 +73,157 @@ settings_user_material_category:
 uom_conversion:
   primary_key: [id]
 
+# New Master Tables
+admin_user:
+  primary_key: [id]
+
+country_master:
+  primary_key: [country_id]
+
+chemical_raw_material_synonyms:
+  primary_key: [material_synonym_id]
+
+user_master:
+  primary_key: [user_id]
+
+# New Relationship Tables
+user_purchase_org:
+  primary_key: [user_purchase_org_id]
+
+company_currency_exchange_history:
+  primary_key: [currency_exchange_purchase_org_id]
+
+country_hsn_code_wise_duty_structure:
+  primary_key: [id]
+
+country_tariffs:
+  primary_key: [id]
+
+ocean_freight_master:
+  primary_key: [ocean_freight_id]
+
+plant_to_port_mapping_master:
+  primary_key: [plant_port_id]
+
+supplier_hierarchy:
+  primary_key: [supplier_hierarchy_id]
+
+# New Transactional Tables
+action_plans:
+  primary_key: [id]
+
+audit_snapshot_price_prediction_negotiation:
+  primary_key: [porg_plant_material_date_id]
+
+demand_supply_summary:
+  primary_key: [id]
+
+demand_supply_trends:
+  primary_key: [id]
+
+esg_tracker:
+  primary_key: [id]
+
+export_data:
+  primary_key: [id]
+
+fact_pack:
+  primary_key: [id]
+
+forecast_recommendations:
+  primary_key: [id]
+
+import_data:
+  primary_key: [id]
+
+inventory_levels:
+  primary_key: [id]
+
+joint_development_projects:
+  primary_key: [id]
+
+material_research_reports:
+  primary_key: [id]
+
+material_supplier_general_intelligence:
+  primary_key: [material_supplier_general_intelligence_id]
+
+material_synonyms:
+  primary_key: [synonym_id]
+
+meeting_minutes:
+  primary_key: [id]
+
+multiple_point_engagements:
+  primary_key: [id]
+
+negotiation_llm_logs:
+  primary_key: [id]
+
+negotiation_recommendations:
+  primary_key: [id]
+
+news_insights:
+  primary_key: [id]
+
+news_porg_plant_material_source_data:
+  primary_key: [news_porg_plant_material_source_data_id]
+
+plan_assignments:
+  primary_key: [id]
+
+porters_analysis:
+  primary_key: [id]
+
+price_data_country_storage:
+  primary_key: [material_plant_id]
+
+price_forecast_data:
+  primary_key: [forecast_id]
+
+price_history_data:
+  primary_key: [material_price_type_period_id]
+
+procurement_plans:
+  primary_key: [id]
+
+purchase_history_transactional_data:
+  primary_key: [purchase_transaction_id]
+
+quote_comparison:
+  primary_key: [id]
+
+reach_tracker:
+  primary_key: [id]
+
+region_hierarchy:
+  primary_key: [synonym_id]
+
+settings_user_material_category_tile_preferences:
+  primary_key: [user_material_category_id]
+
+supplier_shutdowns:
+  primary_key: [id]
+
+supplier_tracking:
+  primary_key: [id]
+
+tile_cost_sheet_historical_current_supplier:
+  primary_key: [porg_plant_material_supplier_date]
+
+tile_multiple_point_engagements:
+  primary_key: [porg_plant_material_supplier_date]
+
+tile_vendor_minutes_of_meeting:
+  primary_key: [porg_plant_material_supplier_date]
+
+vendor_key_information:
+  primary_key: [id]
+
+vendor_wise_action_plan:
+  primary_key: [id]
+
+market_research_status:
+  primary_key: [id]
+
 

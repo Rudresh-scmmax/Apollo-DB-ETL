@@ -16,13 +16,24 @@ def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame) -> pd.
     fk_constraints = {
         'plant_material_purchase_org_supplier': [
             ('material_id', 'material_master', 'material_id'),
-            ('supplier_id', 'supplier_master', 'supplier_id'),
-            ('plant_id', 'purchaser_plant_master', 'plant_id'),
-            ('purchasing_org_id', 'purchasing_organizations', 'purchasing_org_id'),
+            ('supplier_id', 'supplier_master', 'supplier_id'),  # Now Integer
+            ('plant_id', 'purchaser_plant_master', 'plant_id'),  # Now Integer
+            # Note: purchasing_org_id is String(20) in DB, FK validation may need special handling
         ],
         'where_to_use_each_price_type': [
             ('material_id', 'material_master', 'material_id'),
-        ]
+            ('price_type_id', 'pricing_type_master', 'price_type_id'),
+            ('source_of_price_id', 'pricing_source_master', 'source_of_price_id'),
+            ('frequency_of_update_id', 'frequency_master', 'frequency_of_update_id'),
+        ],
+        'supplier_master': [
+            ('supplier_country_id', 'location_master', 'location_id'),
+            ('base_currency_id', 'currency_master', 'currency_id'),
+        ],
+        'purchaser_plant_master': [
+            ('plant_country_code', 'country_master', 'country_code'),
+            ('base_currency_accounting', 'currency_master', 'currency_name'),
+        ],
     }
     
     if table not in fk_constraints:
@@ -66,6 +77,7 @@ def stage_and_upsert(conn: Connection, table: str, df: pd.DataFrame, pk_cols: Li
     conn.execute(text(f"CREATE TEMP TABLE {stg} AS SELECT * FROM {table} WITH NO DATA"))
 
     # Restrict DataFrame to only columns that exist in target table
+    # Note: models_module could be passed here if available, but for now we query DB
     target_cols = set(get_table_columns(conn, table))
     df_cols = [c for c in df.columns if c in target_cols]
     if not df_cols:
