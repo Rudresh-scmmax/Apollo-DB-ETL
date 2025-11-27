@@ -17,10 +17,19 @@ python -m etl.run_etl --create-schema --category masters --mode initial --excel 
 python -m etl.run_etl --schema-only
 ```
 
-### Option 3: Manual Database Setup
+### Option 3: Manual Database Setup (Using Python)
 ```bash
-# Connect to PostgreSQL and run the schema script manually
-psql -h your-db-host -U postgres -d apollo -f Create-APOLLO-SQL.sql
+# Create schema using Python (uses models.py)
+python -c "
+from etl.schema import ensure_database_schema
+from etl.db import get_engine
+from etl.models_loader import load_models_module
+
+engine = get_engine()
+models = load_models_module('etl/models.py')
+with engine.begin() as conn:
+    ensure_database_schema(conn, engine, models_module=models)
+"
 ```
 
 ## Command Line Options
@@ -54,11 +63,11 @@ python -m etl.run_etl --category all --mode incremental --excel "daily_data.xlsx
 
 ## Database Schema Details
 
-The `Create-APOLLO-SQL.sql` file contains:
-- **25+ Tables** in proper dependency order
-- **Primary keys** and **foreign key constraints**
-- **Indexes** for performance
-- **Data types** optimized for the application
+The database schema is created from `etl/models.py` (SQLAlchemy models):
+- **78+ Tables** with all current table definitions
+- **Primary keys** and **foreign key constraints** (from model definitions)
+- **Indexes** for performance (defined in models)
+- **Data types** from SQLAlchemy model definitions
 
 ### Table Categories:
 1. **Master Tables**: Currency, Location, Material types, etc.

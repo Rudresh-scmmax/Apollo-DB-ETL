@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from sqlalchemy import text
+from typing import Optional, Any
+from sqlalchemy import text, Engine
 from sqlalchemy.engine import Connection
 
 
@@ -14,8 +15,39 @@ def check_database_exists(conn: Connection) -> bool:
         return False
 
 
-def create_database_schema(conn: Connection, schema_file_path: str = None) -> None:
-    """Create the APOLLO database schema from SQL file."""
+def create_database_schema_from_models(engine: Engine, models_module: Optional[Any] = None) -> None:
+    """Create the APOLLO database schema from SQLAlchemy models."""
+    if models_module is None:
+        # Try to load models from default location
+        import sys
+        from pathlib import Path
+        current_dir = os.path.dirname(os.path.dirname(__file__))
+        models_path = os.path.join(current_dir, "etl", "models.py")
+        
+        if not os.path.exists(models_path):
+            raise FileNotFoundError(f"Models file not found: {models_path}")
+        
+        sys.path.insert(0, current_dir)
+        from etl.models_loader import load_models_module
+        models_module = load_models_module(models_path)
+    
+    # Import Base from models
+    from etl.models import Base
+    
+    print("Creating APOLLO database schema from SQLAlchemy models...")
+    
+    # Create all tables from models
+    Base.metadata.create_all(engine)
+    
+    # Get list of created tables
+    created_tables = list(Base.metadata.tables.keys())
+    print(f"Database schema creation complete. Created {len(created_tables)} tables.")
+    for table_name in sorted(created_tables):
+        print(f"  ✓ {table_name}")
+
+
+def create_database_schema_from_sql(conn: Connection, schema_file_path: str = None) -> None:
+    """Create the APOLLO database schema from SQL file (legacy method)."""
     if schema_file_path is None:
         # Default to Create-APOLLO-SQL.sql in project root
         current_dir = os.path.dirname(os.path.dirname(__file__))
@@ -50,8 +82,41 @@ def create_database_schema(conn: Connection, schema_file_path: str = None) -> No
     print(f"Database schema creation complete. Created {len(created_tables)} tables.")
 
 
-def ensure_database_schema(conn: Connection, force_recreate: bool = False) -> bool:
-    """Ensure database schema exists, create if missing."""
+def create_database_schema(conn: Connection, models_module: Optional[Any] = None, engine: Optional[Engine] = None) -> None:
+    """Create the APOLLO database schema from SQLAlchemy models.
+    
+    Uses models.py as the source of truth. Models module and engine are required.
+    """
+    if engine is None:
+        raise ValueError("Engine is required to create schema from models")
+    
+    # Load models if not provided
+    if models_module is None:
+        import sys
+        current_dir = os.path.dirname(os.path.dirname(__file__))
+        models_path = os.path.join(current_dir, "etl", "models.py")
+        
+        if not os.path.exists(models_path):
+            raise FileNotFoundError(f"Models file not found: {models_path}. Cannot create schema without models.py")
+        
+        sys.path.insert(0, current_dir)
+        from etl.models_loader import load_models_module
+        models_module = load_models_module(models_path)
+    
+    create_database_schema_from_models(engine, models_module)
+
+
+def ensure_database_schema(conn: Connection, engine: Engine, force_recreate: bool = False, models_module: Optional[Any] = None) -> bool:
+    """Ensure database schema exists, create if missing.
+    
+    Uses models.py as the source of truth for schema creation.
+    
+    Args:
+        conn: Database connection
+        engine: SQLAlchemy engine (required)
+        force_recreate: Force recreate schema (drops existing tables)
+        models_module: Optional SQLAlchemy models module (auto-loaded if not provided)
+    """
     if not force_recreate and check_database_exists(conn):
         print("Database schema already exists")
         return True
@@ -61,10 +126,12 @@ def ensure_database_schema(conn: Connection, force_recreate: bool = False) -> bo
         # Note: This would drop all tables first - implement if needed
     
     try:
-        create_database_schema(conn)
+        create_database_schema(conn, models_module=models_module, engine=engine)
         return True
     except Exception as e:
         print(f"ERROR: Failed to create database schema: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 

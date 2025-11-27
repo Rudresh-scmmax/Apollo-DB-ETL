@@ -2,17 +2,23 @@
 
 When you alter database tables, you need to update the following files in this ETL project:
 
-## 1. **`Create-APOLLO-SQL.sql`** (Database Schema Definition)
-**Location:** Root directory
+## 1. **`etl/models.py`** (Database Schema Definition - Source of Truth)
+**Location:** `etl/models.py`
 
 **What to update:**
-- Table structure (CREATE TABLE statements)
-- Column definitions (data types, NULL/NOT NULL constraints)
-- Primary key constraints
-- Foreign key constraints
+- SQLAlchemy model classes (add/remove/modify)
+- Column definitions (data types, nullable constraints)
+- Primary key constraints (in `__table_args__` or `mapped_column`)
+- Foreign key relationships (using `ForeignKey` or `relationship`)
 - Any new tables or dropped tables
 
-**Why:** This is the source of truth for the database schema. The ETL uses this to create/validate the database structure.
+**Why:** This is the **single source of truth** for the database schema. The ETL uses this to:
+- Create database schema automatically
+- Validate table structure
+- Extract primary keys and column types
+- Generate Excel templates
+
+**Note:** The old `Create-APOLLO-SQL.sql` file has been archived as it was outdated. All schema is now managed through `models.py`.
 
 ---
 
@@ -141,7 +147,7 @@ allow_fk = target_table in ['table1', 'table2', 'your_table']
 **Location:** `etl/schema.py`
 
 **What to update:**
-- Usually no changes needed - it reads from `Create-APOLLO-SQL.sql`
+- Usually no changes needed - it reads from `etl/models.py`
 - If you change the schema file path or validation logic, update here
 
 ---
@@ -150,14 +156,14 @@ allow_fk = target_table in ['table1', 'table2', 'your_table']
 
 When you alter a database table, check:
 
-- [ ] **Table structure changed?** → Update `Create-APOLLO-SQL.sql`
+- [ ] **Table structure changed?** → Update `etl/models.py`
 - [ ] **Primary key changed?** → Update `etl/config/tables.yaml`
 - [ ] **Columns added/removed/renamed?** → Update `etl/config/mappings.yaml`:
   - [ ] `column_renames` section
   - [ ] `dtypes` section
 - [ ] **Foreign keys changed?** → Update `etl/load.py` → `fk_constraints`
 - [ ] **New table added?** → Add to:
-  - [ ] `Create-APOLLO-SQL.sql`
+  - [ ] `etl/models.py`
   - [ ] `etl/config/tables.yaml`
   - [ ] `etl/config/mappings.yaml` → `load_order` and `tables` sections
 - [ ] **Table removed?** → Remove from all above files
@@ -169,28 +175,27 @@ When you alter a database table, check:
 ## Common Scenarios
 
 ### Scenario 1: Adding a New Column
-1. Update `Create-APOLLO-SQL.sql` - Add column to CREATE TABLE
+1. Update `etl/models.py` - Add column to the model class
 2. Update `etl/config/mappings.yaml`:
    - Add to `column_renames` (if Excel column name differs)
-   - Add to `dtypes`
+   - Add to `dtypes` (or let it auto-detect from models)
 
 ### Scenario 2: Renaming a Column
-1. Update `Create-APOLLO-SQL.sql` - Rename column in CREATE TABLE
+1. Update `etl/models.py` - Rename column in the model class
 2. Update `etl/config/mappings.yaml` - Update `column_renames` mapping
-3. Update `etl/config/tables.yaml` - If it's a primary key, update the key name
+3. If it's a primary key, the change in models.py will be automatically picked up
 
 ### Scenario 3: Changing Data Type
-1. Update `Create-APOLLO-SQL.sql` - Change column data type
-2. Update `etl/config/mappings.yaml` - Update `dtypes` section
+1. Update `etl/models.py` - Change column data type in the model
+2. Update `etl/config/mappings.yaml` - Update `dtypes` mapping (or let it auto-detect from models)
 
 ### Scenario 4: Adding Foreign Key
-1. Update `Create-APOLLO-SQL.sql` - Add FOREIGN KEY constraint
-2. Update `etl/load.py` - Add to `fk_constraints` dictionary
+1. Update `etl/models.py` - Add `ForeignKey` or `relationship` to the model
+2. Update `etl/load.py` - Add to `fk_constraints` dictionary (if needed)
 
 ### Scenario 5: Changing Primary Key
-1. Update `Create-APOLLO-SQL.sql` - Change PRIMARY KEY constraint
-2. Update `etl/config/tables.yaml` - Update `primary_key` array
-3. Update `etl/config/mappings.yaml` - Ensure `column_renames` and `dtypes` reflect the change
+1. Update `etl/models.py` - Change primary key in `__table_args__` or `mapped_column(primary_key=True)`
+2. The change will be automatically detected by the ETL from models.py
 
 ### Scenario 6: Adding Table-Specific Transformations
 1. Add transformation function to `etl/transform.py`

@@ -132,10 +132,30 @@ def main(argv: list[str] | None = None):
     # Handle schema creation if requested
     with engine.begin() as conn:
         if args.create_schema or args.schema_only or args.force_schema:
-            print("[ETL] Setting up database schema...")
-            schema_created = ensure_database_schema(conn, force_recreate=args.force_schema)
+            print("[ETL] Setting up database schema from models.py...")
+            
+            # Ensure models are loaded for schema creation
+            if models_module is None:
+                if args.models_path:
+                    from .models_loader import load_models_module
+                    print(f"[ETL] Loading models from: {args.models_path}")
+                    models_module = load_models_module(args.models_path)
+                else:
+                    # Load from default location
+                    from .models_loader import load_models_module
+                    default_models_path = os.path.join(os.path.dirname(__file__), "models.py")
+                    print(f"[ETL] Loading models from default location: {default_models_path}")
+                    models_module = load_models_module(default_models_path)
+            
+            # Create schema from models
+            schema_created = ensure_database_schema(
+                conn, 
+                engine,
+                force_recreate=args.force_schema,
+                models_module=models_module
+            )
             if not schema_created:
-                print("[ETL] ERROR: Failed to create database schema")
+                print("[ETL] ERROR: Failed to create database schema from models.py")
                 sys.exit(3)
             
             schema_info = get_schema_info(conn)

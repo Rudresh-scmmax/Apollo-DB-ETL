@@ -40,10 +40,13 @@ def lambda_handler(event, context):
     stdout, stderr = "", ""
     try:
         # Build arguments for run_etl.main
+        # Use models.py as source of truth for schema
+        models_path = os.path.join(os.path.dirname(__file__), "etl", "models.py")
         sys_argv = [
             "--mode", "incremental",
             "--excel", excel_file,
             "--reports-dir", reports_dir,
+            "--models-path", models_path,  # Use models.py for schema
         ]
         log(f"Starting ETL with args: {sys_argv}")
 
