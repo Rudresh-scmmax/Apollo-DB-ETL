@@ -44,9 +44,16 @@ def database_query(query, params=None):
         response_payload = resp["Payload"].read()
         result = json.loads(response_payload)
         
-        # Handle Lambda function errors
+        # Handle Lambda invocation errors (Lambda runtime errors, not function errors)
+        # Function errors are returned as {"statusCode": 500, "body": "..."} and should be handled by caller
         if "errorMessage" in result:
-            raise RuntimeError(f"Lambda function error: {result['errorMessage']}")
+            raise RuntimeError(f"Lambda invocation error: {result['errorMessage']}")
+        
+        # Check status code in response (function-level errors)
+        if isinstance(result, dict) and result.get("statusCode", 200) >= 400:
+            # Function returned an error - let caller handle it
+            # The error details are in result["body"]
+            pass
         
         return result
     except Exception as e:

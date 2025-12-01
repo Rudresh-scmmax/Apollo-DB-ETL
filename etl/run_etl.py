@@ -66,9 +66,18 @@ def parse_args_from(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def resolve_worklist(args: argparse.Namespace, mappings: dict) -> List[str]:
+def resolve_worklist(args: argparse.Namespace, mappings: dict, models_module=None) -> List[str]:
     if args.tables:
         return [t.strip() for t in args.tables.split(",") if t.strip()]
+    
+    # If using models, generate worklist from model table names (lowercase, matches Excel sheets)
+    if models_module:
+        from .models_utils import get_all_models_from_module
+        models = get_all_models_from_module(models_module)
+        # Return all table names from models (these are lowercase and match Excel sheet names)
+        return sorted(list(models.keys()))
+    
+    # Otherwise use YAML load_order
     if args.category == "all":
         return list(mappings.get("load_order", {}).get("masters", [])) + \
                list(mappings.get("load_order", {}).get("core", [])) + \
@@ -115,7 +124,7 @@ def main(argv: list[str] | None = None):
     else:
         tables_conf = load_yaml(args.tables_config)
 
-    worklist = resolve_worklist(args, mappings)
+    worklist = resolve_worklist(args, mappings, models_module)
     print(f"[ETL] Worklist resolved: {worklist}")
     if not worklist:
         print("Nothing to load: check --tables or --category and mappings.yaml")

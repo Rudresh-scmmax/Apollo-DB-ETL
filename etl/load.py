@@ -4,6 +4,7 @@ from typing import List, Tuple, Optional, Any
 
 import pandas as pd
 from sqlalchemy import text
+from sqlalchemy.exc import ResourceClosedError
 from .db import get_table_columns
 from sqlalchemy.engine import Connection
 
@@ -628,26 +629,9 @@ def stage_and_upsert(conn: Connection, table: str, df: pd.DataFrame, pk_cols: Li
         stg = f"stg_{table}"
         print(f"    [DEBUG] Creating staging table {stg} with {len(df)} rows")
         try:
-            # DDL statements don't return rows - just execute them
-            drop_result = conn.execute(text(f"DROP TABLE IF EXISTS {stg}"))
-            # DDL statements may return empty results - just ignore them
-            if drop_result and hasattr(drop_result, 'fetchall'):
-                try:
-                    # Try to consume result, but don't fail if it's empty
-                    list(drop_result.fetchall())
-                except (AttributeError, TypeError, StopIteration):
-                    # Result is empty or not iterable - that's fine for DDL
-                    pass
-            
-            create_result = conn.execute(text(f"CREATE TEMP TABLE {stg} AS SELECT * FROM {table} WITH NO DATA"))
-            # DDL statements may return empty results - just ignore them
-            if create_result and hasattr(create_result, 'fetchall'):
-                try:
-                    # Try to consume result, but don't fail if it's empty
-                    list(create_result.fetchall())
-                except (AttributeError, TypeError, StopIteration):
-                    # Result is empty or not iterable - that's fine for DDL
-                    pass
+            # DDL statements don't return rows - just execute them and ignore the result
+            conn.execute(text(f"DROP TABLE IF EXISTS {stg}"))
+            conn.execute(text(f"CREATE TEMP TABLE {stg} AS SELECT * FROM {table} WITH NO DATA"))
         except Exception as e:
             print(f"    [ERROR] Failed to create staging table: {e}")
             import traceback
