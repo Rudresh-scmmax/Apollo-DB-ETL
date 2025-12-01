@@ -226,4 +226,7 @@ vendor_wise_action_plan:
 market_research_status:
   primary_key: [id]
 
+tiles:
+  primary_key: [id]
+
 

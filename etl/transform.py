@@ -76,10 +76,20 @@ def split_valid_invalid(df: pd.DataFrame, pk_cols: List[str]) -> Tuple[pd.DataFr
     invalid_df = df[~valid_mask].copy()
     
     reasons = []
+    rejection_reasons = []
     for idx in invalid_df.index:
         missing_cols = [col for col in pk_cols if col in df.columns and (pd.isna(df.loc[idx, col]) or df.loc[idx, col] in ("", "nan"))]
         if missing_cols:
-            reasons.append(f"Missing required data in columns: {missing_cols} (Row {idx})")
+            reason = f"Missing required data in columns: {missing_cols}"
+            reasons.append(f"{reason} (Row {idx})")
+            rejection_reasons.append(reason)
+        else:
+            rejection_reasons.append("Missing required primary key data")
+    
+    # Add rejection_reason column to invalid_df
+    if not invalid_df.empty and rejection_reasons:
+        invalid_df = invalid_df.copy()
+        invalid_df['rejection_reason'] = rejection_reasons
     
     return valid_df, invalid_df, reasons
 
@@ -290,6 +300,7 @@ def map_location_type_desc_to_id(df: pd.DataFrame, excel_path: str) -> pd.DataFr
 def coerce_types_for_table(df: pd.DataFrame, types_cfg: Dict[str, str]) -> Tuple[pd.DataFrame, pd.DataFrame, List[str]]:
     ok_rows = []
     rej_rows = []
+    rej_reasons = []
     reasons: List[str] = []
     for idx, row in df.iterrows():
         rec = row.to_dict()
@@ -303,7 +314,10 @@ def coerce_types_for_table(df: pd.DataFrame, types_cfg: Dict[str, str]) -> Tuple
                     rec[col] = None
                     continue
                 if want == 'int':
-                    rec[col] = int(str(val).replace(",", ""))
+                    # Handle float values from Excel (e.g., 9.0 -> 9)
+                    val_str = str(val).replace(",", "").strip()
+                    # Try converting to float first, then int (handles "9.0" case)
+                    rec[col] = int(float(val_str))
                 elif want == 'float':
                     rec[col] = float(str(val).replace(",", ""))
                 elif want == 'dict':
@@ -352,7 +366,14 @@ def coerce_types_for_table(df: pd.DataFrame, types_cfg: Dict[str, str]) -> Tuple
             ok_rows.append(rec)
         except Exception as e:
             rej_rows.append(row)
-            reasons.append(f"Type coercion failed for row {idx}: {str(e)}")
+            error_msg = str(e)
+            reason = f"Type coercion failed: {error_msg}"
+            rej_reasons.append(reason)
+            reasons.append(f"Type coercion failed for row {idx}: {error_msg}")
     ok_df = pd.DataFrame(ok_rows) if ok_rows else df.iloc[0:0]
     rej_df = pd.DataFrame(rej_rows) if rej_rows else df.iloc[0:0]
+    # Add rejection_reason column to rej_df
+    if not rej_df.empty and rej_reasons:
+        rej_df = rej_df.copy()
+        rej_df['rejection_reason'] = rej_reasons
     return ok_df, rej_df, reasons

@@ -1,14 +1,14 @@
 load_order:
   masters:
-    - Currency_Master
-    - Material_Type_Master
+    - currency_master
+    - material_type_master
+    - uom_master
+    - location_type_master
+    - location_master
     - supplier_master
-    - UoM Master
-    - Location_Type_Master
-    - Location Master
-    - Calendar_Master
+    - calendar_master
     - frequency_master
-    - Repeat_Master
+    - repeat_master
     - purchasing_organizations
     - port_master
     - material_master
@@ -19,7 +19,7 @@ load_order:
     - tile_cost_sheet_chemical_reacti
     - currency_exchange_history
     - uom_conversion
-    - user_currency_preference
+    - user_preference_currency
     - incoterms_master
     - plant_material_purchase_org_sup
     - where_to_use_each_price_type
@@ -28,6 +28,7 @@ load_order:
     - country_master
     - user_master
     - chemical_raw_material_synonyms
+    - tiles
   core: []
   relationship:
     - user_purchase_org
@@ -64,7 +65,7 @@ load_order:
     - price_forecast_data
     - price_history_data
     - procurement_plans
-    - purchase_history_transactional_data
+    - purchase_history_transactional_
     - quote_comparison
     - reach_tracker
     - region_hierarchy
@@ -79,7 +80,7 @@ load_order:
     - market_research_status
 
 tables:
-  Currency_Master:
+  currency_master:
     target_table: currency_master
     column_renames:
       currency_id: currency_id
@@ -92,7 +93,7 @@ tables:
     incremental:
       strategy: business_key_upsert
 
-  Material_Type_Master:
+  material_type_master:
     target_table: material_type_master
     column_renames:
       material_type_master_id: material_type_master_id
@@ -131,7 +132,7 @@ tables:
     incremental:
       strategy: business_key_upsert
 
-  UoM Master:
+  uom_master:
     target_table: uom_master
     column_renames:
       uom_id: uom_id
@@ -150,7 +151,7 @@ tables:
     incremental:
       strategy: business_key_upsert
 
-  Location_Type_Master:
+  location_type_master:
     target_table: location_type_master
     column_renames:
       location_type_id: location_type_id
@@ -161,7 +162,7 @@ tables:
     incremental:
       strategy: business_key_upsert
 
-  Location Master:
+  location_master:
     target_table: location_master
     column_renames:
       location_Id: location_id
@@ -174,7 +175,7 @@ tables:
     incremental:
       strategy: business_key_upsert
 
-  Calendar_Master:
+  calendar_master:
     target_table: calendar_master
     column_renames:
       date: date
@@ -208,7 +209,7 @@ tables:
     incremental:
       strategy: business_key_upsert
 
-  Repeat_Master:
+  repeat_master:
     target_table: repeat_master
     column_renames:
       repeat_master_id: repeat_master_id
@@ -367,14 +368,14 @@ tables:
     incremental:
       strategy: business_key_upsert
 
-  user_currency_preference:
-    target_table: user_currency_preference
+  user_preference_currency:
+    target_table: user_preference_currency
     column_renames:
       user_id: user_id
-      user_preferred_currency: user_preferred_currency
+      currency_id: currency_id
     dtypes:
       user_id: int
-      user_preferred_currency: str
+      currency_id: int
     incremental:
       strategy: business_key_upsert
 
@@ -758,7 +759,7 @@ tables:
     incremental:
       strategy: business_key_upsert
 
-  purchase_history_transactional_data:
+  purchase_history_transactional_:
     target_table: purchase_history_transactional_data
     column_renames: {}
     dtypes:
@@ -854,6 +855,16 @@ tables:
       source: str
       created_at: date
       updated_at: date
+    incremental:
+      strategy: business_key_upsert
+
+  tiles:
+    target_table: tiles
+    column_renames: {}
+    dtypes:
+      id: int
+      name: str
+      active: bool
     incremental:
       strategy: business_key_upsert
 

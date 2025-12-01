@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 from sqlalchemy import create_engine as sa_create_engine, text
@@ -8,7 +10,26 @@ from sqlalchemy.engine import Engine, Connection
 
 
 def get_engine() -> Engine:
-    """Create engine for direct VPC connection."""
+    """Create engine for database connection.
+    
+    If USE_DB_QUERY_LAMBDA is set to 'true', uses Lambda function for all operations.
+    Otherwise, uses direct VPC connection (requires DB_USER, DB_PASS, DB_HOST).
+    """
+    # Check if we should use db_query.py Lambda function for ALL operations
+    use_lambda = os.getenv('USE_DB_QUERY_LAMBDA', 'false').lower() == 'true'
+    
+    if use_lambda:
+        # Use Lambda-based database adapter
+        try:
+            from .db_lambda import get_engine as get_lambda_engine
+            return get_lambda_engine()
+        except ImportError as e:
+            raise RuntimeError(
+                f"Failed to import Lambda database adapter: {e}. "
+                "Ensure db_query.py exists in project root."
+            )
+    
+    # Use direct connection (requires DB credentials)
     user = os.getenv('DB_USER')
     password = os.getenv('DB_PASS')
     dbname = os.getenv('DB_NAME', 'apollo')
@@ -16,7 +37,10 @@ def get_engine() -> Engine:
     port = os.getenv('DB_PORT', '5432')
     
     if not all([user, password, host]):
-        raise RuntimeError('Missing DB_USER, DB_PASS, or DB_HOST in environment')
+        raise RuntimeError(
+            'Missing DB_USER, DB_PASS, or DB_HOST in environment. '
+            'Set USE_DB_QUERY_LAMBDA=true to use Lambda function instead.'
+        )
     
     dsn = f'postgresql+psycopg2://{user}:{password}@{host}:{port}/{dbname}'
     return sa_create_engine(dsn, pool_pre_ping=True)
@@ -32,6 +56,14 @@ def get_primary_keys(conn: Connection, models_module: Optional[Any] = None) -> D
     Returns:
         Dict mapping table_name -> list of primary key column names
     """
+    # Check if using Lambda connection - delegate to Lambda version
+    if hasattr(conn, '__class__') and 'Lambda' in conn.__class__.__name__:
+        try:
+            from .db_lambda import get_primary_keys as get_lambda_primary_keys
+            return get_lambda_primary_keys(conn, models_module)
+        except ImportError:
+            pass  # Fall through to regular implementation
+    
     # If models provided, use them (faster and more reliable)
     if models_module:
         try:
@@ -71,6 +103,14 @@ def get_table_columns(conn: Connection, table_name: str, models_module: Optional
     Returns:
         List of column names
     """
+    # Check if using Lambda connection - delegate to Lambda version
+    if hasattr(conn, '__class__') and 'Lambda' in conn.__class__.__name__:
+        try:
+            from .db_lambda import get_table_columns as get_lambda_table_columns
+            return get_lambda_table_columns(conn, table_name, models_module)
+        except ImportError:
+            pass  # Fall through to regular implementation
+    
     # If models provided, use them
     if models_module:
         try:

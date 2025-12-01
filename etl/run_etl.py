@@ -148,13 +148,15 @@ def main(argv: list[str] | None = None):
                     models_module = load_models_module(default_models_path)
             
             # Create schema from models
+            # Note: Schema creation is skipped when using Lambda engine
             schema_created = ensure_database_schema(
                 conn, 
                 engine,
                 force_recreate=args.force_schema,
                 models_module=models_module
             )
-            if not schema_created:
+            # Schema creation may be skipped for Lambda, which is OK
+            if schema_created is False and not hasattr(engine, '__class__') or 'Lambda' not in engine.__class__.__name__:
                 print("[ETL] ERROR: Failed to create database schema from models.py")
                 sys.exit(3)
             
@@ -183,8 +185,44 @@ def main(argv: list[str] | None = None):
                 _, _, bucket, *key_parts = args.excel.split("/")
                 key = "/".join(key_parts)
                 args.excel = download_excel_from_s3(bucket, key)
+            
+            # Try to read sheet - first try the sheet_name from mappings, then try target_table
+            # This handles cases where Excel has database table names as sheet names
             print(f"Reading sheet {sheet_name} from {args.excel}")
-            df = read_sheet(args.excel, sheet_name)
+            df = None
+            sheet_found = False
+            try:
+                df = read_sheet(args.excel, sheet_name)
+                sheet_found = True
+                print(f"  Found sheet as '{sheet_name}'")
+            except ValueError as e1:
+                # Sheet not found with mappings name - try target_table name
+                # This handles Excel files exported from database (which use table names as sheet names)
+                if target_table != sheet_name:
+                    try:
+                        print(f"  Sheet '{sheet_name}' not found, trying target_table name '{target_table}'...")
+                        df = read_sheet(args.excel, target_table)
+                        sheet_found = True
+                        print(f"  Found sheet as '{target_table}'")
+                    except ValueError as e2:
+                        # Neither name found - log and continue
+                        error_msg = f"Sheet not found: tried '{sheet_name}' and '{target_table}'. Available sheets shown in error."
+                        print(f"ERROR loading {target_table}: {error_msg}")
+                        print(f"  First error: {str(e1)[:200]}")
+                        reporter.record_error(sheet_name, target_table, error_msg)
+                        continue
+                else:
+                    # Same name, so just report the error
+                    error_msg = str(e1)
+                    print(f"ERROR loading {target_table}: {error_msg}")
+                    reporter.record_error(sheet_name, target_table, error_msg)
+                    continue
+            
+            if not sheet_found or df is None:
+                error_msg = f"Could not read sheet for {target_table}"
+                print(f"ERROR loading {target_table}: {error_msg}")
+                reporter.record_error(sheet_name, target_table, error_msg)
+                continue
             df = clean_dataframe(df)
             if column_renames:
                 df = apply_column_renames(df, column_renames)
@@ -215,11 +253,17 @@ def main(argv: list[str] | None = None):
             # Auto-generate missing primary keys where applicable
             df = auto_generate_missing_keys(df, table_pk, target_table)
 
+            # Log initial row count
+            initial_row_count = len(df)
+            print(f"  [DEBUG] Initial rows read from Excel: {initial_row_count}")
+            
             # Split rows with valid vs missing primary keys
             df, pk_invalid, pk_reasons = split_valid_invalid(df, table_pk)
+            print(f"  [DEBUG] After PK validation: {len(df)} valid, {len(pk_invalid)} rejected (missing PK)")
             
             # Type coercion for valid rows
             df, type_invalid, type_reasons = coerce_types_for_table(df, types_cfg)
+            print(f"  [DEBUG] After type coercion: {len(df)} valid, {len(type_invalid)} rejected (type errors)")
             
             # Combine all rejected rows and reasons
             rejected = pd.concat([pk_invalid, type_invalid], ignore_index=True) if not pk_invalid.empty or not type_invalid.empty else pd.DataFrame()
@@ -232,16 +276,24 @@ def main(argv: list[str] | None = None):
                 after = len(df)
                 if after < before:
                     reasons.append(f"Deduplicated {before - after} duplicate rows on keys {table_pk}")
+                    print(f"  [DEBUG] After deduplication: {after} rows (removed {before - after} duplicates)")
 
+            print(f"  [DEBUG] Rows ready for database: {len(df)} (rejected so far: {len(rejected)})")
+            
             inserted = updated = 0
+            fk_rejected = 0
+            fk_rejected_df = pd.DataFrame()
             if args.dry_run:
-                pass
+                print(f"  [DEBUG] DRY RUN mode - skipping database operations")
             else:
                 with engine.begin() as conn:
                     replace = args.mode == 'initial'
-                    # Allow FK violations for relationship tables
-                    allow_fk = target_table in ['plant_material_purchase_org_supplier', 'where_to_use_each_price_type']
-                    inserted, updated, fk_rejected, fk_rejected_df = stage_and_upsert(conn, target_table, df, table_pk, replace=replace, allow_fk_violations=allow_fk)
+                    print(f"  [DEBUG] Mode: {'REPLACE' if replace else 'UPSERT'}")
+                    # ALWAYS allow FK violations for all tables - filter and reject invalid rows instead of failing
+                    # This prevents the entire load from failing due to a few bad rows
+                    allow_fk = True
+                    inserted, updated, fk_rejected, fk_rejected_df = stage_and_upsert(conn, target_table, df, table_pk, replace=replace, allow_fk_violations=allow_fk, models_module=models_module)
+                    print(f"  [DEBUG] Database operation result: inserted={inserted}, updated={updated}, fk_rejected={fk_rejected}")
 
             total_rejected = len(rejected) + fk_rejected
             # Add FK rejection reasons to the reasons list
@@ -249,7 +301,28 @@ def main(argv: list[str] | None = None):
                 fk_reason = f"{fk_rejected} rows rejected due to missing foreign key references"
                 reasons.append(fk_reason)
             
-            reporter.record_table(sheet_name, target_table, len(df) + len(rejected), inserted, total_rejected, inserted, updated, reasons)
+            # Number of rows that were valid after all validations (and sent to DB)
+            valid_rows_for_db = len(df)
+            
+            # If nothing was inserted/updated/rejected but we did read valid rows,
+            # make that explicit in the report notes so business users understand
+            # this was effectively a no-op (data already present/unchanged).
+            if inserted == 0 and updated == 0 and total_rejected == 0 and initial_row_count > 0 and valid_rows_for_db > 0:
+                reasons.append(
+                    "No rows were inserted or updated because all rows already exist in the database with the same keys/data "
+                    "(idempotent load – database was already in sync with Excel)."
+                )
+            
+            reporter.record_table(
+                sheet_name,
+                target_table,
+                initial_row_count,      # rows read from Excel
+                valid_rows_for_db,      # rows that passed validation and were sent to DB
+                total_rejected,         # total rejected (data + FK)
+                inserted,
+                updated,
+                reasons,
+            )
             
             # Write both types of rejected rows to CSV
             reporter.write_rejected(sheet_name, rejected)
@@ -257,10 +330,38 @@ def main(argv: list[str] | None = None):
                 reporter.write_rejected(f"{sheet_name}_fk_violations", fk_rejected_df)
             
             print(f"Loaded {target_table}: inserted={inserted}, updated={updated}, rejected={total_rejected} (data issues: {len(rejected)}, FK violations: {fk_rejected})")
+            if inserted == 0 and updated == 0 and total_rejected == 0 and initial_row_count > 0:
+                print(f"  [WARNING] No rows inserted/updated/rejected but {initial_row_count} rows were read - data may already exist in database")
 
         except Exception as e:
-            reporter.record_error(sheet_name, target_table, str(e))
-            print(f"ERROR loading {target_table}: {e}")
+            error_str = str(e)
+            # Check if it's a FK violation - this should not happen if FK filtering is working
+            if "ForeignKeyViolation" in error_str or "foreign key constraint" in error_str.lower():
+                print(f"WARNING: Foreign key violation for {target_table} (FK filtering should have prevented this).")
+                print(f"  Error: {error_str[:300]}")
+                # Try to extract which FK failed for better reporting
+                import re
+                fk_match = re.search(r'Key \(([^)]+)\)=\(([^)]+)\) is not present in table "([^"]+)"', error_str)
+                if fk_match:
+                    column, value, ref_table = fk_match.groups()
+                    error_msg = f"Foreign key violation: {column}={value} not found in {ref_table}. "
+                    error_msg += f"Please ensure reference data exists in {ref_table} table first. "
+                    error_msg += f"(This should have been filtered out - please report this as a bug)"
+                    reporter.record_error(sheet_name, target_table, error_msg)
+                    # Mark all rows as rejected for this table
+                    reporter.record_table(sheet_name, target_table, 0, 0, 0, 0, 0, [error_msg])
+                else:
+                    reporter.record_error(sheet_name, target_table, error_str)
+                    reporter.record_table(sheet_name, target_table, 0, 0, 0, 0, 0, [error_str])
+            elif "Worksheet named" in error_str and "not found" in error_str:
+                # Sheet not found - already handled above, but catch here too
+                reporter.record_error(sheet_name, target_table, error_str)
+                print(f"ERROR loading {target_table}: {error_str}")
+            else:
+                # Other errors - log and continue
+                reporter.record_error(sheet_name, target_table, error_str)
+                print(f"ERROR loading {target_table}: {error_str[:500]}")
+                reporter.record_table(sheet_name, target_table, 0, 0, 0, 0, 0, [error_str[:200]])
 
     # Finalize reporting
     reporter.finalize()

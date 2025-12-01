@@ -16,6 +16,15 @@ def check_database_exists(conn: Connection) -> bool:
 
 
 def create_database_schema_from_models(engine: Engine, models_module: Optional[Any] = None) -> None:
+    """Create database schema from SQLAlchemy models.
+    
+    Note: If using Lambda engine, schema creation is skipped (schema should already exist).
+    """
+    # Check if using Lambda engine (doesn't support SQLAlchemy DDL)
+    if hasattr(engine, '__class__') and 'Lambda' in engine.__class__.__name__:
+        print("Note: Using Lambda engine - skipping schema creation (schema should already exist)")
+        print("If schema doesn't exist, create it manually or use direct connection for schema setup")
+        return
     """Create the APOLLO database schema from SQLAlchemy models."""
     if models_module is None:
         # Try to load models from default location
@@ -82,7 +91,7 @@ def create_database_schema_from_sql(conn: Connection, schema_file_path: str = No
     print(f"Database schema creation complete. Created {len(created_tables)} tables.")
 
 
-def create_database_schema(conn: Connection, models_module: Optional[Any] = None, engine: Optional[Engine] = None) -> None:
+def create_database_schema(conn: Connection, models_module: Optional[Any] = None, engine: Optional[Engine] = None) -> bool:
     """Create the APOLLO database schema from SQLAlchemy models.
     
     Uses models.py as the source of truth. Models module and engine are required.

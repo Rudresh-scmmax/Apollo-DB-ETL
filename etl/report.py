@@ -135,8 +135,15 @@ class RunReporter:
 
     def write_rejected(self, sheet: str, rejected_df: pd.DataFrame):
         if rejected_df is not None and not rejected_df.empty:
+            # Ensure directory exists before writing
+            os.makedirs(self.run_dir, exist_ok=True)
             path = os.path.join(self.run_dir, f'rejected_{sheet}.csv')
-            rejected_df.to_csv(path, index=False)
+            try:
+                rejected_df.to_csv(path, index=False)
+            except Exception as e:
+                # If directory creation failed, try again
+                os.makedirs(self.run_dir, exist_ok=True)
+                rejected_df.to_csv(path, index=False)
     
     def add_missing_materials(self, missing_materials_data: dict) -> None:
         """Add missing materials data to be included in the report."""

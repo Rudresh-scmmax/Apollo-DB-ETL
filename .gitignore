@@ -66,3 +66,6 @@ id_rsa*
 # Temporary files
 *.tmp
 *.temp
+
+# Reports
+reports/

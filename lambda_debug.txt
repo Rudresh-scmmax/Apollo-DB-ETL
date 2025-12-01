@@ -1,0 +1,20 @@
+SQL: SELECT count(*) FROM uom_master
+Result Type: <class 'dict'>
+Result: {'statusCode': 200, 'body': '[{"count": 0}]'}
+--------------------------------------------------
+SQL: SELECT DISTINCT uom_id FROM uom_master WHERE uom_id IS NOT NULL
+Result Type: <class 'dict'>
+Result: {'statusCode': 200, 'body': '[]'}
+--------------------------------------------------
+SQL: SELECT uom_id FROM uom_master LIMIT 5
+Result Type: <class 'dict'>
+Result: {'statusCode': 200, 'body': '[]'}
+--------------------------------------------------
+SQL: SELECT * FROM uom_master LIMIT 5
+Result Type: <class 'dict'>
+Result: {'statusCode': 200, 'body': '[]'}
+--------------------------------------------------
+SQL: SELECT column_name FROM information_schema.columns WHERE table_name = 'uom_master'
+Result Type: <class 'dict'>
+Result: {'statusCode': 200, 'body': '[{"column_name": "uom_id"}, {"column_name": "synonyms"}, {"column_name": "uom_name"}, {"column_name": "uom_symbol"}, {"column_name": "measurement_type"}, {"column_name": "uom_system"}]'}
+--------------------------------------------------
