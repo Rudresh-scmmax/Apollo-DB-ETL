@@ -86,7 +86,7 @@ def _get_fk_constraints_from_db(conn: Connection, table: str) -> List[Tuple[str,
     return fk_list
 
 
-def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame, master_tables: set = None) -> pd.DataFrame:
+def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame, master_tables: set = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Pre-filter DataFrame to remove rows that would cause FK violations.
     
     Args:
@@ -95,11 +95,18 @@ def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame, master
         df: DataFrame to filter
         master_tables: Set of master table names. If a referenced master table is empty,
                       FK validation is skipped to allow initial loads.
+    
+    Returns:
+        Tuple of (valid_df, rejected_df) where rejected_df has 'rejection_reason' column
     """
     if df.empty:
-        return df
+        return df, pd.DataFrame()
     
     valid_df = df.copy()
+    rejected_df = pd.DataFrame()
+    
+    # Initialize rejected_df with same columns as df plus rejection_reason
+    rejected_df = pd.DataFrame(columns=list(df.columns) + ['rejection_reason'])
     
     # Load master tables list from mappings if not provided
     if master_tables is None:
@@ -391,7 +398,7 @@ def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame, master
         print(f"FK filtering for {table}: Using {len(fk_list)} hardcoded FK constraint(s)")
     else:
         print(f"FK filtering for {table}: No FK constraints found - skipping FK validation")
-        return valid_df
+        return valid_df, pd.DataFrame()
     
     for fk_col, ref_table, ref_col in fk_list:
         if fk_col not in df.columns:
@@ -426,12 +433,29 @@ def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame, master
                     current_table_count = count_result.scalar() if hasattr(count_result, 'scalar') else None
                     # Handle dict response from Lambda
                     if isinstance(current_table_count, dict):
-                        current_table_count = current_table_count.get('count', 0)
-                    is_initial_load = current_table_count == 0
-                except Exception:
+                        # Lambda might return {'column_0': 1662} or {'count': 1662}
+                        current_table_count = current_table_count.get('count') or current_table_count.get('column_0') or 0
+                    # Also handle if it's a list (LambdaResult)
+                    elif isinstance(current_table_count, list) and len(current_table_count) > 0:
+                        first_item = current_table_count[0]
+                        if isinstance(first_item, dict):
+                            current_table_count = first_item.get('count') or first_item.get('column_0') or 0
+                        else:
+                            current_table_count = first_item
+                    # Convert to int if it's a string
+                    if isinstance(current_table_count, str):
+                        try:
+                            current_table_count = int(current_table_count)
+                        except ValueError:
+                            current_table_count = 0
+                    is_initial_load = (current_table_count == 0) if current_table_count is not None else False
+                except Exception as e:
+                    print(f"  [DEBUG] Could not check if {table} is empty: {e}")
                     is_initial_load = False  # Assume not initial load if we can't check
             
-            # Skip FK validation for master tables on initial load
+            # Skip FK validation ONLY if:
+            # 1. Current table is a master table AND it's empty (initial load)
+            # 2. AND the referenced table is also a master table (allows master-to-master FK on initial load)
             # This allows master data to be inserted even if referenced master tables have partial data
             # Note: The database will still enforce FK constraints, so invalid FK values will cause errors
             # This is expected behavior - the data should be correct, or the FK constraint should be deferred
@@ -439,18 +463,40 @@ def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame, master
                 if is_ref_table_master or (table == ref_table):
                     print(f"  Skipping FK validation for {fk_col} -> {ref_table} (master table initial load - database will still enforce FK constraints)")
                     continue  # Skip this FK constraint validation
+            # If current table is NOT empty, always validate FKs (even if both are master tables)
             
             # Get valid IDs/values from reference table
             # Handle NULL values - they should pass FK validation if column allows NULL
             try:
                 valid_ids_result = conn.execute(text(f"SELECT DISTINCT {ref_col} FROM {ref_table} WHERE {ref_col} IS NOT NULL"))
-                valid_ids = {str(row[0]) for row in valid_ids_result.fetchall()}
+                rows = valid_ids_result.fetchall()
+                # Convert to set for comparison, handling different data types
+                # Store both string and numeric representations for flexible matching
+                valid_ids_str = set()
+                valid_ids_num = set()
+                for row in rows:
+                    if row and len(row) > 0:
+                        val = row[0]
+                        # Convert to string for comparison, handling None, NaN, etc.
+                        if val is not None:
+                            valid_ids_str.add(str(val))
+                            # Also store numeric value if it's a number (for float/int matching)
+                            try:
+                                if isinstance(val, (int, float)):
+                                    valid_ids_num.add(float(val))
+                                elif isinstance(val, str) and val.replace('.', '', 1).replace('-', '', 1).isdigit():
+                                    valid_ids_num.add(float(val))
+                            except (ValueError, TypeError):
+                                pass
+                # Use both sets for comparison
+                valid_ids = (valid_ids_str, valid_ids_num)
             except Exception as e:
                 print(f"Warning: Could not query {ref_table}.{ref_col} for FK validation: {e}")
                 continue
             
             # Log FK validation results
-            if len(valid_ids) == 0:
+            valid_ids_str, valid_ids_num = valid_ids
+            if len(valid_ids_str) == 0:
                 print(f"Warning: {ref_table} table is empty or has no non-null values in {ref_col}")
             
             # Filter DataFrame to only include valid foreign key values
@@ -458,14 +504,15 @@ def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame, master
             initial_count = len(valid_df)
             
             # Convert FK column to string for comparison, handling NULLs
-            fk_series = valid_df[fk_col].astype(str)
+            fk_series_str = valid_df[fk_col].astype(str)
             # Replace 'nan' strings (from pandas) with empty string for comparison
-            fk_series = fk_series.replace('nan', '')
+            fk_series_str = fk_series_str.replace('nan', '')
             
-            # Filter: keep rows where FK value is in valid_ids OR is NULL/empty
+            # Also create numeric series for numeric comparison (handles 1.0 vs 1)
+            fk_series_num = pd.to_numeric(valid_df[fk_col], errors='coerce')
             
             # If valid_ids is empty, handle based on whether it's a master table
-            if len(valid_ids) == 0:
+            if len(valid_ids_str) == 0:
                 # Debug: log master_tables value
                 print(f"  [DEBUG] Checking skip logic: table={table}, ref_table={ref_table}, master_tables={master_tables}")
                 # If referenced table is a master table and empty, skip FK validation
@@ -478,25 +525,88 @@ def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame, master
                     # Debug: log why we're not skipping
                     print(f"  [DEBUG] Not skipping FK validation for {fk_col} -> {ref_table}: is_ref_table_master={is_ref_table_master}, is_current_table_master={is_current_table_master}, table={table}, ref_table={ref_table}, master_tables={master_tables}")
                     # For non-master tables, filter out rows with non-NULL FK values
-                    valid_mask = valid_df[fk_col].isna() | (fk_series == '')
-                    filtered_count = initial_count - len(valid_df[valid_mask])
+                    valid_mask = valid_df[fk_col].isna() | (fk_series_str == '') | (fk_series_str == 'None')
+                    invalid_mask = ~valid_mask
+                    
+                    if invalid_mask.any():
+                        # Track rejected rows with specific FK violation details
+                        rejected_rows = valid_df[invalid_mask].copy()
+                        rejection_reasons = []
+                        for idx in rejected_rows.index:
+                            fk_value = valid_df.loc[idx, fk_col]
+                            reason = f"Foreign key violation: {fk_col}={fk_value} not found in {ref_table}.{ref_col} (reference table is empty)"
+                            rejection_reasons.append(reason)
+                        rejected_rows['rejection_reason'] = rejection_reasons
+                        
+                        # Append to rejected_df - accumulate rejected rows across all FK checks
+                        if rejected_df.empty:
+                            rejected_df = rejected_rows
+                        else:
+                            # Merge with existing rejected rows
+                            rejected_df = pd.concat([rejected_df, rejected_rows], ignore_index=True)
+                            # Group by all columns except rejection_reason and combine reasons
+                            cols_without_reason = [col for col in rejected_df.columns if col != 'rejection_reason']
+                            if len(cols_without_reason) > 0:
+                                rejected_df = rejected_df.groupby(cols_without_reason, dropna=False).agg({
+                                    'rejection_reason': lambda x: '; '.join(x.unique())
+                                }).reset_index()
+                            else:
+                                rejected_df = rejected_df.drop_duplicates(subset=['rejection_reason'], keep='first')
+                    
                     valid_df = valid_df[valid_mask]
+                    filtered_count = initial_count - len(valid_df)
                     if filtered_count > 0:
                         print(f"Filtered {filtered_count} rows with invalid {fk_col} references (reference table {ref_table} is empty)")
             else:
                 # Reference table has data - filter normally
-                valid_mask = fk_series.isin(valid_ids) | valid_df[fk_col].isna() | (fk_series == '')
+                # Create mask: keep rows where FK value matches (string OR numeric) OR is NULL/empty
+                # Track which rows are being filtered out and why
+                # Match by string OR by numeric value (handles 1.0 == 1)
+                string_match = fk_series_str.isin(valid_ids_str)
+                numeric_match = fk_series_num.isin(valid_ids_num)
+                null_or_empty = (fk_series_str == '') | (fk_series_str == 'None') | valid_df[fk_col].isna()
+                valid_mask = string_match | numeric_match | null_or_empty
+                invalid_mask = ~valid_mask
+                
+                if invalid_mask.any():
+                    # Track rejected rows with specific FK violation details
+                    rejected_rows = valid_df[invalid_mask].copy()
+                    # Create detailed rejection reason for each row
+                    rejection_reasons = []
+                    for idx in rejected_rows.index:
+                        fk_value = valid_df.loc[idx, fk_col]
+                        reason = f"Foreign key violation: {fk_col}={fk_value} not found in {ref_table}.{ref_col}"
+                        rejection_reasons.append(reason)
+                    rejected_rows['rejection_reason'] = rejection_reasons
+                    
+                    # Append to rejected_df - accumulate rejected rows across all FK checks
+                    if rejected_df.empty:
+                        rejected_df = rejected_rows
+                    else:
+                        # Merge with existing rejected rows
+                        # If a row was already rejected, combine rejection reasons
+                        rejected_df = pd.concat([rejected_df, rejected_rows], ignore_index=True)
+                        # Group by all columns except rejection_reason and combine reasons
+                        cols_without_reason = [col for col in rejected_df.columns if col != 'rejection_reason']
+                        if len(cols_without_reason) > 0:
+                            rejected_df = rejected_df.groupby(cols_without_reason, dropna=False).agg({
+                                'rejection_reason': lambda x: '; '.join(x.unique())
+                            }).reset_index()
+                        else:
+                            # If no other columns, just keep unique reasons
+                            rejected_df = rejected_df.drop_duplicates(subset=['rejection_reason'], keep='first')
+                
                 valid_df = valid_df[valid_mask]
                 filtered_count = initial_count - len(valid_df)
                 if filtered_count > 0:
-                    print(f"Filtered {filtered_count} rows with invalid {fk_col} references (valid values: {len(valid_ids)} found in {ref_table})")
+                    print(f"Filtered {filtered_count} rows with invalid {fk_col} references (valid values: {len(valid_ids_str)} found in {ref_table})")
                 
         except Exception as e:
             print(f"Warning: Could not validate FK {fk_col} -> {ref_table}.{ref_col}: {e}")
             # Continue processing - don't fail the entire load
             continue
     
-    return valid_df
+    return valid_df, rejected_df
 
 
 def stage_and_upsert(conn: Connection, table: str, df: pd.DataFrame, pk_cols: List[str], replace: bool = False, allow_fk_violations: bool = False, models_module: Optional[Any] = None) -> Tuple[int, int, int, pd.DataFrame]:
@@ -592,15 +702,19 @@ def stage_and_upsert(conn: Connection, table: str, df: pd.DataFrame, pk_cols: Li
             except Exception:
                 pass  # Use default master_tables in function
             
-            valid_df = _filter_fk_violations(conn, table, df, master_tables)
+            valid_df, fk_rejected_df = _filter_fk_violations(conn, table, df, master_tables)
             rejected_count = original_count - len(valid_df)
             
             print(f"    [DEBUG] FK filtering result: {len(valid_df)} rows valid, {rejected_count} rows filtered out")
             
             if valid_df.empty:
                 print(f"    [DEBUG] All rows filtered out due to FK violations for {table}")
-                rejected_df = original_df.copy()
-                rejected_df['rejection_reason'] = 'Foreign key violation - referenced ID not found in master table'
+                # Use the detailed rejection reasons from FK filtering
+                if not fk_rejected_df.empty:
+                    rejected_df = fk_rejected_df
+                else:
+                    rejected_df = original_df.copy()
+                    rejected_df['rejection_reason'] = 'Foreign key violation - referenced ID not found in master table'
                 return 0, 0, rejected_count, rejected_df
             
             # Use only valid rows for staging
@@ -608,10 +722,14 @@ def stage_and_upsert(conn: Connection, table: str, df: pd.DataFrame, pk_cols: Li
             
             if rejected_count > 0:
                 print(f"    [DEBUG] Filtered out {rejected_count} rows with FK violations for {table}")
-                # Create rejected DataFrame from original data not in valid set
-                rejected_indices = original_df.index.difference(valid_df.index)
-                rejected_df = original_df.loc[rejected_indices].copy()
-                rejected_df['rejection_reason'] = 'Foreign key violation - referenced ID not found in master table'
+                # Use the detailed rejection reasons from FK filtering
+                if not fk_rejected_df.empty:
+                    rejected_df = fk_rejected_df
+                else:
+                    # Fallback: create rejected DataFrame from original data not in valid set
+                    rejected_indices = original_df.index.difference(valid_df.index)
+                    rejected_df = original_df.loc[rejected_indices].copy()
+                    rejected_df['rejection_reason'] = 'Foreign key violation - referenced ID not found in master table'
         except Exception as e:
             print(f"    [WARNING] FK filtering failed for {table}: {e}. Continuing without FK filtering (may cause FK violations).")
             # Continue without FK filtering - the try/except around INSERT will catch FK violations
