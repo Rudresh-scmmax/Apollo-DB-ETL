@@ -111,7 +111,25 @@ def get_table_columns(conn: Connection, table_name: str, models_module: Optional
         except ImportError:
             pass  # Fall through to regular implementation
     
-    # If models provided, use them
+    # Prioritize database introspection to support schema evolution
+    # (User added columns in DB should be detected even if models aren't updated)
+    try:
+        sql = text(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = :t
+            ORDER BY ordinal_position
+            """
+        )
+        rows = conn.execute(sql, {"t": table_name}).fetchall()
+        db_cols = [r[0] for r in rows]
+        if db_cols:
+            return db_cols
+    except Exception as e:
+        print(f"Warning: Could not query database for columns of {table_name}: {e}")
+
+    # Fallback to models if provided (e.g. table doesn't exist yet or DB query failed)
     if models_module:
         try:
             from .models_utils import get_all_models_from_module, get_table_columns_from_model
@@ -119,9 +137,9 @@ def get_table_columns(conn: Connection, table_name: str, models_module: Optional
             if table_name in models:
                 return get_table_columns_from_model(models[table_name])
         except Exception as e:
-            print(f"Warning: Could not load columns from models: {e}. Falling back to database query.")
+            print(f"Warning: Could not load columns from models: {e}")
     
-    # Fallback to database query
+    return []
     sql = text(
         """
         SELECT column_name

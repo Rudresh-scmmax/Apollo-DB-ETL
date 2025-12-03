@@ -204,14 +204,10 @@ class LambdaConnection:
                                 # Raise special exception that caller can catch and retry without RETURNING clause
                                 raise LambdaReturningError(f"Lambda RETURNING clause error: {error_msg}")
 
-                            # Some Lambda deployments are known to return a 500 with
-                            # "list index out of range" even when the underlying
-                            # INSERT/UPSERT or COUNT(*) actually succeeds. Treat this
-                            # as a non-fatal parsing issue and let the caller verify
-                            # success via row counts instead of failing the ETL run.
-                            if 'list index out of range' in error_msg.lower():
-                                print(f"    [WARNING] Lambda returned status {status_code} with 'list index out of range'; treating as non-fatal and continuing")
-                                return LambdaResult([])
+                            # REMOVED: Dangerous swallowing of 500 errors
+                            # if 'list index out of range' in error_msg.lower():
+                            #     print(f"    [WARNING] Lambda returned status {status_code} with 'list index out of range'; treating as non-fatal and continuing")
+                            #     return LambdaResult([])
                             
                             print(f"    [ERROR] Lambda returned status {status_code} with error: {error_msg[:300]}")
                             raise RuntimeError(f"Lambda query failed (status {status_code}): {error_msg}")
@@ -490,7 +486,23 @@ def get_primary_keys(conn, models_module: Optional[Any] = None) -> Dict[str, Lis
 
 def get_table_columns(conn, table_name: str, models_module: Optional[Any] = None) -> List[str]:
     """Get table columns from database or from models if provided."""
-    # If models provided, use them
+    # Prioritize database introspection to support schema evolution
+    try:
+        sql = f"""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = '{table_name}'
+            ORDER BY ordinal_position
+        """
+        result = conn.execute(sql)
+        rows = result.fetchall()
+        db_cols = [r[0] for r in rows]
+        if db_cols:
+            return db_cols
+    except Exception as e:
+        print(f"Warning: Could not query database for columns of {table_name}: {e}")
+
+    # Fallback to models if provided
     if models_module:
         try:
             from .models_utils import get_all_models_from_module, get_table_columns_from_model
@@ -498,16 +510,7 @@ def get_table_columns(conn, table_name: str, models_module: Optional[Any] = None
             if table_name in models:
                 return get_table_columns_from_model(models[table_name])
         except Exception as e:
-            print(f"Warning: Could not load columns from models: {e}. Falling back to database query.")
+            print(f"Warning: Could not load columns from models: {e}")
     
-    # Query via Lambda
-    sql = f"""
-        SELECT column_name
-        FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = '{table_name}'
-        ORDER BY ordinal_position
-    """
-    result = conn.execute(sql)
-    rows = result.fetchall()
-    return [r[0] for r in rows]
+    return []
 

@@ -122,7 +122,27 @@ def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame, master
             'country_master', 'user_master', 'chemical_raw_material_synonyms', 'tiles'
         }
     
-    # First, try to get FK constraints from database
+    # CRITICAL FIX: Skip ALL FK validation for master tables
+    # Master tables load in order and database will enforce FK constraints during INSERT
+    # This prevents premature rejection of valid data during pre-filtering
+    # Check both the passed master_tables set and the hardcoded list for safety
+    hardcoded_master_tables = {
+        'currency_master', 'material_type_master', 'uom_master', 'location_type_master',
+        'location_master', 'supplier_master', 'calendar_master', 'frequency_master',
+        'repeat_master', 'purchasing_organizations', 'port_master', 'material_master',
+        'purchaser_plant_master', 'pricing_source_master', 'news_tags', 'pricing_type_master',
+        'tile_cost_sheet_chemical_reaction_master_data', 'currency_exchange_history',
+        'uom_conversion', 'user_preference_currency', 'incoterms_master',
+        'plant_material_purchase_org_supplier', 'where_to_use_each_price_type',
+        'forex_conversion_options_master', 'settings_user_material_category',
+        'country_master', 'user_master', 'chemical_raw_material_synonyms', 'tiles'
+    }
+    is_current_table_master = (master_tables and table in master_tables) or (table in hardcoded_master_tables)
+    if is_current_table_master:
+        print(f"  [SKIP ALL] FK validation completely skipped for master table '{table}' (database will enforce FK constraints during INSERT)")
+        return valid_df, pd.DataFrame()  # Return all rows as valid, no rejections
+    
+    # First, try to get FK constraints from database (only for non-master tables)
     db_fk_constraints = _get_fk_constraints_from_db(conn, table)
     
     # Define FK constraints for known tables (fallback if DB query fails)
@@ -425,12 +445,18 @@ def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame, master
             is_current_table_master = master_tables and table in master_tables
             is_ref_table_master = master_tables and ref_table in master_tables
             
+            # Debug logging
+            if is_current_table_master:
+                print(f"  [DEBUG] Table '{table}' is identified as a master table. master_tables={master_tables is not None}")
+            
             # Check if current table is empty (initial load)
             is_initial_load = False
+            current_table_count = None
             if is_current_table_master:
                 try:
                     count_result = conn.execute(text(f"SELECT COUNT(*) FROM {table}"))
                     current_table_count = count_result.scalar() if hasattr(count_result, 'scalar') else None
+                    
                     # Handle dict response from Lambda
                     if isinstance(current_table_count, dict):
                         # Lambda might return {'column_0': 1662} or {'count': 1662}
@@ -448,22 +474,36 @@ def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame, master
                             current_table_count = int(current_table_count)
                         except ValueError:
                             current_table_count = 0
-                    is_initial_load = (current_table_count == 0) if current_table_count is not None else False
+                    
+                    # Handle None case
+                    if current_table_count is None:
+                        current_table_count = 0
+                    
+                    is_initial_load = (current_table_count == 0)
+                    print(f"  [DEBUG] Table '{table}' current count: {current_table_count}, is_initial_load: {is_initial_load}")
                 except Exception as e:
                     print(f"  [DEBUG] Could not check if {table} is empty: {e}")
-                    is_initial_load = False  # Assume not initial load if we can't check
+                    import traceback
+                    print(f"  [DEBUG] Traceback: {traceback.format_exc()}")
+                    # For master tables, if we can't check, assume it's initial load to be safe
+                    is_initial_load = True
+                    current_table_count = 0
             
-            # Skip FK validation ONLY if:
-            # 1. Current table is a master table AND it's empty (initial load)
-            # 2. AND the referenced table is also a master table (allows master-to-master FK on initial load)
-            # This allows master data to be inserted even if referenced master tables have partial data
-            # Note: The database will still enforce FK constraints, so invalid FK values will cause errors
-            # This is expected behavior - the data should be correct, or the FK constraint should be deferred
-            if is_current_table_master and is_initial_load:
-                if is_ref_table_master or (table == ref_table):
-                    print(f"  Skipping FK validation for {fk_col} -> {ref_table} (master table initial load - database will still enforce FK constraints)")
-                    continue  # Skip this FK constraint validation
-            # If current table is NOT empty, always validate FKs (even if both are master tables)
+            # Skip FK validation for master tables entirely:
+            # Master tables are loaded in a specific order, and FK validation during pre-filtering
+            # causes premature rejection. Instead, let the database enforce FK constraints during INSERT.
+            # This provides better error messages and allows master tables to load properly.
+            if is_current_table_master:
+                # For master tables, skip FK validation entirely and let the database handle it
+                # This is safe because:
+                # 1. Master tables are loaded in the correct order (defined in mappings.yaml)
+                # 2. The database will still enforce FK constraints at INSERT time with clear error messages
+                # 3. Pre-filtering FK violations causes premature rejection of valid data
+                # 4. Database FK errors are clearer than pre-filtered rejections
+                print(f"  [SKIP] FK validation for {fk_col} -> {ref_table} (master table '{table}' - database will enforce FK constraints during INSERT)")
+                continue  # Skip this FK constraint validation
+            
+            # If current table is NOT empty (subsequent loads), always validate FKs
             
             # Get valid IDs/values from reference table
             # Handle NULL values - they should pass FK validation if column allows NULL
@@ -518,9 +558,14 @@ def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame, master
                 # If referenced table is a master table and empty, skip FK validation
                 # This allows initial loads to proceed (master tables should be loaded first)
                 # Also skip if it's a self-referencing FK (table == ref_table) and it's a master table
-                if is_ref_table_master or (table == ref_table and is_current_table_master):
-                    print(f"  Skipping FK validation for {fk_col} -> {ref_table} (master table is empty, allowing initial load)")
+                # If referenced table is a master table and empty, we MUST NOT skip FK validation
+                # because the database will enforce constraints immediately and fail.
+                # We should let the validation proceed so these rows are filtered out and logged as rejections.
+                # Only skip if it's a self-referencing FK (table == ref_table) AND we are in initial load
+                if table == ref_table and is_current_table_master and is_initial_load:
+                    print(f"  Skipping FK validation for {fk_col} -> {ref_table} (self-referencing master table in initial load)")
                     continue  # Skip this FK constraint validation
+
                 else:
                     # Debug: log why we're not skipping
                     print(f"  [DEBUG] Not skipping FK validation for {fk_col} -> {ref_table}: is_ref_table_master={is_ref_table_master}, is_current_table_master={is_current_table_master}, table={table}, ref_table={ref_table}, master_tables={master_tables}")
@@ -609,12 +654,66 @@ def _filter_fk_violations(conn: Connection, table: str, df: pd.DataFrame, master
     return valid_df, rejected_df
 
 
+def _ensure_schema_matches_dataframe(conn: Connection, table: str, df: pd.DataFrame):
+    """
+    Ensure database table has all columns present in DataFrame.
+    Adds missing columns using ALTER TABLE.
+    """
+    try:
+        # Get existing DB columns (force DB query, ignore models)
+        # We can't use get_table_columns because it might use models if DB query fails or returns empty
+        # But here we specifically want to know what's in the DB to ADD to it.
+        # We'll use get_table_columns but rely on its introspection priority.
+        from .db import get_table_columns
+        db_cols = set(get_table_columns(conn, table))
+        
+        # If db_cols is empty, maybe table doesn't exist or query failed.
+        # If table doesn't exist, we can't ALTER it.
+        if not db_cols:
+            return
+
+        # Identify missing columns
+        missing_cols = [c for c in df.columns if c not in db_cols]
+        
+        if not missing_cols:
+            return
+
+        print(f"    [SCHEMA EVOLUTION] Found {len(missing_cols)} new columns in DataFrame for table {table}: {missing_cols}")
+        
+        for col in missing_cols:
+            # Determine SQL type based on pandas dtype
+            dtype = df[col].dtype
+            sql_type = "TEXT" # Default
+            
+            if pd.api.types.is_integer_dtype(dtype):
+                sql_type = "INTEGER"
+            elif pd.api.types.is_float_dtype(dtype):
+                sql_type = "DOUBLE PRECISION"
+            elif pd.api.types.is_bool_dtype(dtype):
+                sql_type = "BOOLEAN"
+            elif pd.api.types.is_datetime64_any_dtype(dtype):
+                sql_type = "TIMESTAMP"
+            
+            # Generate ALTER TABLE statement
+            print(f"    [SCHEMA EVOLUTION] Adding column {col} ({sql_type}) to table {table}")
+            try:
+                conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN "{col}" {sql_type}'))
+            except Exception as e:
+                print(f"    [ERROR] Failed to add column {col} to table {table}: {e}")
+                
+    except Exception as e:
+        print(f"    [WARNING] Schema evolution check failed for table {table}: {e}")
+
+
 def stage_and_upsert(conn: Connection, table: str, df: pd.DataFrame, pk_cols: List[str], replace: bool = False, allow_fk_violations: bool = False, models_module: Optional[Any] = None) -> Tuple[int, int, int, pd.DataFrame]:
     if df.empty:
         print(f"    [DEBUG] stage_and_upsert: DataFrame is empty, returning 0,0,0")
         return 0, 0, 0, pd.DataFrame()
 
     print(f"    [DEBUG] stage_and_upsert: Starting with {len(df)} rows for table {table}")
+
+    # Check for schema evolution (add missing columns to DB)
+    _ensure_schema_matches_dataframe(conn, table, df)
 
     # Restrict DataFrame to only columns that exist in target table
     # Use models_module if available (more reliable than querying DB)
@@ -627,6 +726,51 @@ def stage_and_upsert(conn: Connection, table: str, df: pd.DataFrame, pk_cols: Li
         return 0, 0, 0, pd.DataFrame()
     df = df[df_cols]
     print(f"    [DEBUG] stage_and_upsert: Using {len(df_cols)} columns: {df_cols[:5]}{'...' if len(df_cols) > 5 else ''}")
+
+    # Fix JSONB columns if models_module is available
+    if models_module:
+        try:
+            from .models_utils import get_all_models_from_module, get_column_types_from_model
+            models = get_all_models_from_module(models_module)
+            if table in models:
+                model_class = models[table]
+                col_types = get_column_types_from_model(model_class)
+                json_cols = [col for col, type_name in col_types.items() if type_name == 'dict' and col in df.columns]
+                
+                if json_cols:
+                    print(f"    [DEBUG] Fixing JSONB columns for {table}: {json_cols}")
+                    import json
+                    import ast
+                    
+                    for col in json_cols:
+                        def fix_json_value(val):
+                            if pd.isna(val) or val == '':
+                                return None
+                            # If it's already a dict/list, dump it
+                            if isinstance(val, (dict, list)):
+                                return json.dumps(val)
+                            # If it's a string, try to parse it as python literal (handles single quotes)
+                            if isinstance(val, str):
+                                try:
+                                    # Try to parse as JSON first (fastest)
+                                    json.loads(val)
+                                    return val
+                                except json.JSONDecodeError:
+                                    try:
+                                        # Try to parse as Python literal (handles ['a', 'b'])
+                                        parsed = ast.literal_eval(val)
+                                        if isinstance(parsed, (dict, list)):
+                                            return json.dumps(parsed)
+                                    except (ValueError, SyntaxError):
+                                        # If it looks like a list/dict but failed parsing, try simple quote replacement
+                                        # This is a fallback for simple cases
+                                        if (val.startswith('[') and val.endswith(']')) or (val.startswith('{') and val.endswith('}')):
+                                            return val.replace("'", '"')
+                            return val
+
+                        df[col] = df[col].apply(fix_json_value)
+        except Exception as e:
+            print(f"    [WARNING] Failed to fix JSONB columns: {e}")
 
     # Pre-filter FK violations BEFORE creating staging table if requested
     original_count = len(df)
@@ -807,6 +951,9 @@ def stage_and_upsert(conn: Connection, table: str, df: pd.DataFrame, pk_cols: Li
                         elif isinstance(val, str):
                             # Escape single quotes and backslashes
                             escaped_val = val.replace("\\", "\\\\").replace("'", "''")
+                            # Escape % as %% to prevent Lambda/psycopg2 parameter substitution errors
+                            # (The "list index out of range" error suggests it treats % as a placeholder)
+                            escaped_val = escaped_val.replace("%", "%%")
                             values.append(f"'{escaped_val}'")
                         elif isinstance(val, (int, float)):
                             values.append(str(val))
@@ -834,6 +981,7 @@ def stage_and_upsert(conn: Connection, table: str, df: pd.DataFrame, pk_cols: Li
                     RETURNING xmax = 0 AS inserted;
                     """
                 )
+                print(f"    [DEBUG] SQL with RETURNING: {sql_with_returning}")
                 
                 sql_without_returning = text(
                     f"""
@@ -842,12 +990,18 @@ def stage_and_upsert(conn: Connection, table: str, df: pd.DataFrame, pk_cols: Li
                     ON CONFLICT ({conflict}) DO UPDATE SET {set_clause};
                     """
                 )
+                print(f"    [DEBUG] SQL without RETURNING: {sql_without_returning}")
                 
                 # Execute batch - try with RETURNING first, fall back to without RETURNING if it fails
                 batch_rows = []
                 try:
                     batch_result = conn.execute(sql_with_returning)
                     batch_rows = batch_result.fetchall() if hasattr(batch_result, 'fetchall') else list(batch_result)
+                    
+                    # If batch_rows is empty but we expected results (RETURNING clause), treat as failure
+                    # This handles cases where db_lambda.py swallows "list index out of range" errors and returns empty list
+                    if not batch_rows:
+                        raise RuntimeError("Lambda returned empty result for INSERT RETURNING - likely a swallowed error")
                 except Exception as e:
                     error_msg = str(e)
                     error_type = type(e).__name__

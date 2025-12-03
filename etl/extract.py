@@ -40,6 +40,24 @@ def find_sheet_name(excel_path: str, requested_name: str) -> str:
         if actual_underscore_normalized == requested_underscore_normalized:
             return actual_name
     
+    # Try truncated match (Excel has 31-character limit for sheet names)
+    # This handles cases like "tile_cost_sheet_chemical_reaction_master_data" -> "tile_cost_sheet_chemical_reacti"
+    if len(requested_name) > 31:
+        requested_truncated = requested_name[:31]
+        for actual_name in sheet_names:
+            if actual_name == requested_truncated or actual_name.lower() == requested_truncated.lower():
+                return actual_name
+    
+    # Try partial match for truncated names (match first 20 chars)
+    # This helps when the sheet name was truncated in Excel
+    requested_prefix = requested_normalized[:20]
+    for actual_name in sheet_names:
+        if actual_name.lower().startswith(requested_prefix) and len(actual_name) <= 31:
+            # Found a potential truncated match
+            # Verify it's a reasonable match (at least 80% of the name matches)
+            if len(requested_name) > 31 and actual_name.lower().startswith(requested_normalized[:25]):
+                return actual_name
+    
     # Not found - provide helpful error message with available sheets
     # Show first few matches that are close (for debugging)
     available_str = ', '.join(sheet_names[:20])

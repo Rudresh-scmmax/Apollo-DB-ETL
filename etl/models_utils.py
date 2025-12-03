@@ -168,3 +168,51 @@ def get_table_columns_from_model(model_class: Type[DeclarativeBase]) -> List[str
         return []
     return [col.name for col in model_class.__table__.columns]
 
+
+def get_fk_dependency_order(models_module: Any) -> List[str]:
+    """Build topological sort of tables based on FK dependencies.
+    
+    Returns list of table names in order: tables with no dependencies first,
+    then tables that depend on them, etc.
+    """
+    models = get_all_models_from_module(models_module)
+    
+    # Build dependency graph: table -> set of tables it depends on
+    dependencies = {}
+    for table_name, model_class in models.items():
+        fks = get_foreign_keys_from_model(model_class)
+        deps = set()
+        for fk_col, ref_table, ref_col in fks:
+            # Ignore self-references (they're handled by database)
+            if ref_table != table_name and ref_table in models:
+                deps.add(ref_table)
+        dependencies[table_name] = deps
+    
+    # Topological sort using DFS
+    sorted_tables = []
+    visited = set()
+    visiting = set()  # For cycle detection
+    
+    def visit(table):
+        if table in visited:
+            return
+        if table in visiting:
+            # Cycle detected - this is OK, database handles it
+            # Just mark as visited and continue
+            visited.add(table)
+            return
+        
+        visiting.add(table)
+        for dep in dependencies.get(table, []):
+            if dep in models:
+                visit(dep)
+        visiting.remove(table)
+        visited.add(table)
+        sorted_tables.append(table)
+    
+    # Visit all tables
+    for table in sorted(models.keys()):  # Sort for deterministic order
+        visit(table)
+    
+    return sorted_tables
+

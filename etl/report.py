@@ -193,12 +193,36 @@ class RunReporter:
             </div>
         """
         
-        # Calculate totals
-        total_read = sum(row.get('read_rows', 0) for row in self.rows)
-        total_valid = sum(row.get('valid_rows', 0) for row in self.rows)
-        total_rejected = sum(row.get('rejected_rows', 0) for row in self.rows)
-        total_inserted = sum(row.get('inserted', 0) for row in self.rows)
-        total_updated = sum(row.get('updated', 0) for row in self.rows)
+        # Deduplicate rows - merge entries with same sheet/table combination
+        # Keep the entry with most data (higher read_rows, inserted, updated, or rejected)
+        deduplicated_rows = {}
+        for row in self.rows:
+            key = (row.get('sheet', ''), row.get('table', ''))
+            if key not in deduplicated_rows:
+                deduplicated_rows[key] = row
+            else:
+                existing = deduplicated_rows[key]
+                existing_activity = existing.get('read_rows', 0) + existing.get('inserted', 0) + existing.get('updated', 0) + existing.get('rejected_rows', 0)
+                new_activity = row.get('read_rows', 0) + row.get('inserted', 0) + row.get('updated', 0) + row.get('rejected_rows', 0)
+                if new_activity > existing_activity:
+                    deduplicated_rows[key] = row
+                elif new_activity == existing_activity:
+                    # Same activity - merge notes if different
+                    existing_notes = existing.get('notes', '')
+                    new_notes = row.get('notes', '')
+                    if new_notes and new_notes not in existing_notes:
+                        if existing_notes:
+                            existing['notes'] = f"{existing_notes}; {new_notes}"
+                        else:
+                            existing['notes'] = new_notes
+        
+        # Calculate totals from deduplicated rows
+        unique_rows = list(deduplicated_rows.values())
+        total_read = sum(row.get('read_rows', 0) for row in unique_rows)
+        total_valid = sum(row.get('valid_rows', 0) for row in unique_rows)
+        total_rejected = sum(row.get('rejected_rows', 0) for row in unique_rows)
+        total_inserted = sum(row.get('inserted', 0) for row in unique_rows)
+        total_updated = sum(row.get('updated', 0) for row in unique_rows)
         
         # Overall status
         if total_rejected == 0:
@@ -238,13 +262,22 @@ class RunReporter:
                 <tbody>
         """
         
-        for row in self.rows:
+        # Sort rows by sheet name for better readability (use already deduplicated rows)
+        sorted_rows = sorted(unique_rows, key=lambda x: (x.get('sheet', ''), x.get('table', '')))
+        
+        for row in sorted_rows:
             if row.get('rejected_rows', 0) == 0 and row.get('read_rows', 0) > 0:
                 status_text = "✓ SUCCESS"
                 status_class = "success"
             elif row.get('rejected_rows', 0) > 0:
                 status_text = "⚠ PARTIAL"
                 status_class = "warning"
+            elif row.get('read_rows', 0) == 0 and 'ERROR' in row.get('notes', ''):
+                status_text = "✗ ERROR"
+                status_class = "error"
+            elif row.get('read_rows', 0) == 0 and row.get('inserted', 0) == 0 and row.get('updated', 0) == 0:
+                # Skip empty rows (no activity) unless they have error notes
+                continue
             else:
                 status_text = "✗ ERROR"
                 status_class = "error"
@@ -274,8 +307,8 @@ class RunReporter:
             </table>
         """
         
-        # Add detailed rejection explanations section
-        rejection_rows = [row for row in self.rows if row.get('rejected_rows', 0) > 0]
+        # Add detailed rejection explanations section (use deduplicated rows)
+        rejection_rows = [row for row in unique_rows if row.get('rejected_rows', 0) > 0]
         if rejection_rows:
             html_content += """
                 <h2>Why Were Records Rejected?</h2>

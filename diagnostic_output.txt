@@ -1,0 +1,109 @@
+================================================================================
+DIAGNOSTIC: Sheet Names vs Table Names
+================================================================================
+
+Total sheets in Excel: 61
+Total tables in models.py: 78
+
+================================================================================
+MASTER TABLES (from load_order):
+================================================================================
+✓ currency_master                          | Excel:     1 | Models:     1 | Target: currency_master
+✓ material_type_master                     | Excel:     1 | Models:     1 | Target: material_type_master
+✓ uom_master                               | Excel:     1 | Models:     1 | Target: uom_master
+✓ location_type_master                     | Excel:     1 | Models:     1 | Target: location_type_master
+✓ location_master                          | Excel:     1 | Models:     1 | Target: location_master
+✓ supplier_master                          | Excel:     1 | Models:     1 | Target: supplier_master
+✓ calendar_master                          | Excel:     1 | Models:     1 | Target: calendar_master
+✓ frequency_master                         | Excel:     1 | Models:     1 | Target: frequency_master
+✓ repeat_master                            | Excel:     1 | Models:     1 | Target: repeat_master
+✓ purchasing_organizations                 | Excel:     1 | Models:     1 | Target: purchasing_organizations
+✓ port_master                              | Excel:     1 | Models:     1 | Target: port_master
+✓ material_master                          | Excel:     1 | Models:     1 | Target: material_master
+✓ purchaser_plant_master                   | Excel:     1 | Models:     1 | Target: purchaser_plant_master
+✓ pricing_source_master                    | Excel:     1 | Models:     1 | Target: pricing_source_master
+✓ news_tags                                | Excel:     1 | Models:     1 | Target: news_tags
+✓ pricing_type_master                      | Excel:     1 | Models:     1 | Target: pricing_type_master
+✓ tile_cost_sheet_chemical_reacti          | Excel:     1 | Models:     0 | Target: tile_cost_sheet_chemical_reaction_master_data
+✓ currency_exchange_history                | Excel:     1 | Models:     1 | Target: currency_exchange_history
+✓ uom_conversion                           | Excel:     1 | Models:     1 | Target: uom_conversion
+✓ user_preference_currency                 | Excel:     1 | Models:     0 | Target: user_preference_currency
+✓ incoterms_master                         | Excel:     1 | Models:     1 | Target: incoterms_master
+✓ plant_material_purchase_org_sup          | Excel:     1 | Models:     0 | Target: plant_material_purchase_org_supplier
+✓ where_to_use_each_price_type             | Excel:     1 | Models:     1 | Target: where_to_use_each_price_type
+✓ forex_conversion_options_master          | Excel:     1 | Models:     1 | Target: forex_conversion_options_master
+✓ settings_user_material_category          | Excel:     1 | Models:     1 | Target: settings_user_material_category
+✓ country_master                           | Excel:     1 | Models:     1 | Target: country_master
+✓ user_master                              | Excel:     1 | Models:     1 | Target: user_master
+✗ chemical_raw_material_synonyms           | Excel:     0 | Models:     1 | Target: chemical_raw_material_synonyms
+✓ tiles                                    | Excel:     1 | Models:     1 | Target: tiles
+
+================================================================================
+MISSING MASTER TABLES (in load_order but not in Excel):
+================================================================================
+  chemical_raw_material_synonyms           | Similar: []
+
+================================================================================
+ALL SHEET NAMES IN EXCEL:
+================================================================================
+   1. action_plans                                       | In models: True
+   2. admin_user                                         | In models: True
+   3. calendar_master                                    | In models: True
+   4. country_master                                     | In models: True
+   5. country_tariffs                                    | In models: True
+   6. currency_exchange_history                          | In models: True
+   7. currency_master                                    | In models: True
+   8. demand_supply_summary                              | In models: True
+   9. demand_supply_trends                               | In models: True
+  10. emails                                             | In models: True
+  11. esg_tracker                                        | In models: True
+  12. export_data                                        | In models: True
+  13. fact_pack                                          | In models: True
+  14. forecast_recommendations                           | In models: True
+  15. forex_conversion_options_master                    | In models: True
+  16. frequency_master                                   | In models: True
+  17. import_data                                        | In models: True
+  18. incoterms_master                                   | In models: True
+  19. inventory_levels                                   | In models: True
+  20. joint_development_projects                         | In models: True
+  21. location_master                                    | In models: True
+  22. location_type_master                               | In models: True
+  23. market_research_status                             | In models: True
+  24. material_master                                    | In models: True
+  25. material_research_reports                          | In models: True
+  26. material_type_master                               | In models: True
+  27. meeting_minutes                                    | In models: True
+  28. multiple_point_engagements                         | In models: True
+  29. negotiation_llm_logs                               | In models: True
+  30. negotiation_recommendations                        | In models: True
+  31. news_insights                                      | In models: True
+  32. news_tags                                          | In models: True
+  33. plan_assignments                                   | In models: True
+  34. plant_material_purchase_org_sup                    | In models: False
+  35. port_master                                        | In models: True
+  36. porters_analysis                                   | In models: True
+  37. price_forecast_data                                | In models: True
+  38. price_history_data                                 | In models: True
+  39. pricing_source_master                              | In models: True
+  40. pricing_type_master                                | In models: True
+  41. procurement_plans                                  | In models: True
+  42. purchase_history_transactional_                    | In models: False
+  43. purchaser_plant_master                             | In models: True
+  44. purchasing_organizations                           | In models: True
+  45. quote_comparison                                   | In models: True
+  46. reach_tracker                                      | In models: True
+  47. repeat_master                                      | In models: True
+  48. settings_user_material_category                    | In models: True
+  49. supplier_master                                    | In models: True
+  50. supplier_shutdowns                                 | In models: True
+  51. supplier_tracking                                  | In models: True
+  52. tile_cost_sheet_chemical_reacti                    | In models: False
+  53. tiles                                              | In models: True
+  54. uom_conversion                                     | In models: True
+  55. uom_master                                         | In models: True
+  56. user_master                                        | In models: True
+  57. user_preference_currency                           | In models: False
+  58. user_preferred_location                            | In models: False
+  59. user_preferred_material                            | In models: False
+  60. vendor_key_information                             | In models: True
+  61. where_to_use_each_price_type                       | In models: True

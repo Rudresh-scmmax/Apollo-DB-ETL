@@ -1,9 +1,6 @@
 import pandas as pd
-try:
-    xl = pd.ExcelFile('export.xlsx')
-    with open('sheet_names.txt', 'w') as f:
-        for sheet in xl.sheet_names:
-            f.write(sheet + '\n')
-    print("Sheet names written to sheet_names.txt")
-except Exception as e:
-    print(f"Error: {e}")
+
+xl = pd.ExcelFile('export.xlsx')
+print(f"Total sheets: {len(xl.sheet_names)}\n")
+for i, sheet in enumerate(sorted(xl.sheet_names), 1):
+    print(f"{i:3d}. {sheet}")

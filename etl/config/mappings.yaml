@@ -107,17 +107,16 @@ tables:
   supplier_master:
     target_table: supplier_master
     column_renames:
-      VENDOR_ID: supplier_id
-      VENDOR_NAME: supplier_name
-      SUPPLIER_PLANT_NAME: supplier_plant_name
-      SUPPLIER_STATUS: supplier_status
-      COUNTRY: supplier_country_name
-      SUPPLIER_COUNTRY_ID: supplier_country_id
-      PAYMENT_CURRENCY_CODE: base_currency_id
-      BASE_CURRENCY_ID: base_currency_id
-      STATE: relevant_country_region
-      NAME: user_defined_supplier_desc
-      PARTY_NUMBER: supplier_duns
+      supplier_id: supplier_id
+      supplier_name: supplier_name
+      supplier_plant_name: supplier_plant_name
+      supplier_status: supplier_status
+      supplier_country_name: supplier_country_name
+      supplier_country_id: supplier_country_id
+      base_currency_id: base_currency_id
+      relevant_country_region: relevant_country_region
+      user_defined_supplier_desc: user_defined_supplier_desc
+      supplier_duns: supplier_duns
     dtypes:
       supplier_id: int
       supplier_name: str
@@ -165,9 +164,9 @@ tables:
   location_master:
     target_table: location_master
     column_renames:
-      location_Id: location_id
-      location_Name: location_name
-      location_Type: location_type_id
+      location_id: location_id
+      location_name: location_name
+      location_type_id: location_type_id
     dtypes:
       location_id: int
       location_name: str

@@ -67,17 +67,49 @@ def parse_args_from(argv: list[str]) -> argparse.Namespace:
 
 
 def resolve_worklist(args: argparse.Namespace, mappings: dict, models_module=None) -> List[str]:
+    """Resolve which tables to load and in what order.
+    
+    If models_module is provided, uses FK dependency analysis to determine order.
+    Otherwise falls back to mappings.yaml load_order.
+    """
+    # If specific tables requested, use them as-is
     if args.tables:
         return [t.strip() for t in args.tables.split(",") if t.strip()]
     
-    # If using models, generate worklist from model table names (lowercase, matches Excel sheets)
+    # If using models, generate worklist from FK dependency order
     if models_module:
-        from .models_utils import get_all_models_from_module
-        models = get_all_models_from_module(models_module)
-        # Return all table names from models (these are lowercase and match Excel sheet names)
-        return sorted(list(models.keys()))
+        from .models_utils import get_fk_dependency_order, get_all_models_from_module
+        
+        # Get all tables in FK dependency order
+        all_tables_ordered = get_fk_dependency_order(models_module)
+        
+        # Filter by category if specified
+        if args.category != "all":
+            # Get tables from the requested category in mappings.yaml
+            category_tables = set(mappings.get("load_order", {}).get(args.category, []))
+            
+            # Also check if any model table names match
+            models = get_all_models_from_module(models_module)
+            model_tables = set(models.keys())
+            
+            # Expand category_tables to include target_table mappings
+            expanded_category = set()
+            for table in category_tables:
+                if table in model_tables:
+                    expanded_category.add(table)
+                else:
+                    # Check if it's a sheet name that maps to a model table
+                    for sheet, cfg in mappings.get("tables", {}).items():
+                        if sheet == table and cfg.get("target_table") in model_tables:
+                            expanded_category.add(cfg.get("target_table"))
+            
+            # Filter ordered list to only include category tables
+            all_tables_ordered = [t for t in all_tables_ordered if t in expanded_category]
+        
+        print(f"[ETL] Using FK dependency-based load order: {len(all_tables_ordered)} tables")
+        return all_tables_ordered
     
-    # Otherwise use YAML load_order
+    # Fallback to YAML load_order (legacy mode without models)
     if args.category == "all":
         return list(mappings.get("load_order", {}).get("masters", [])) + \
                list(mappings.get("load_order", {}).get("core", [])) + \
@@ -184,6 +216,17 @@ def main(argv: list[str] | None = None):
     for sheet_name in worklist:
         print(f"--- Processing sheet: {sheet_name} ---")
         cfg = mappings.get("tables", {}).get(sheet_name, {})
+        
+        # If sheet_name (from worklist) is not in mappings keys, it might be a target_table name
+        # (e.g. when worklist comes from models.py). Try to find the corresponding sheet name.
+        if not cfg:
+            for s_name, s_cfg in mappings.get("tables", {}).items():
+                if s_cfg.get("target_table") == sheet_name:
+                    print(f"  [DEBUG] Mapped table '{sheet_name}' to sheet '{s_name}'")
+                    sheet_name = s_name
+                    cfg = s_cfg
+                    break
+
         target_table = cfg.get("target_table", sheet_name)
         column_renames: Dict[str, str] = cfg.get("column_renames", {})
         types_cfg: Dict[str, str] = cfg.get("dtypes", {})
@@ -357,11 +400,8 @@ def main(argv: list[str] | None = None):
                     error_msg += f"Please ensure reference data exists in {ref_table} table first. "
                     error_msg += f"(This should have been filtered out - please report this as a bug)"
                     reporter.record_error(sheet_name, target_table, error_msg)
-                    # Mark all rows as rejected for this table
-                    reporter.record_table(sheet_name, target_table, 0, 0, 0, 0, 0, [error_msg])
                 else:
                     reporter.record_error(sheet_name, target_table, error_str)
-                    reporter.record_table(sheet_name, target_table, 0, 0, 0, 0, 0, [error_str])
             elif "Worksheet named" in error_str and "not found" in error_str:
                 # Sheet not found - already handled above, but catch here too
                 reporter.record_error(sheet_name, target_table, error_str)
@@ -370,7 +410,6 @@ def main(argv: list[str] | None = None):
                 # Other errors - log and continue
                 reporter.record_error(sheet_name, target_table, error_str)
                 print(f"ERROR loading {target_table}: {error_str[:500]}")
-                reporter.record_table(sheet_name, target_table, 0, 0, 0, 0, 0, [error_str[:200]])
 
     # Finalize reporting
     reporter.finalize()
