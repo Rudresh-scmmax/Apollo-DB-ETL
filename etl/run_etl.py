@@ -5,13 +5,14 @@ import argparse
 import os
 import sys
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pandas as pd
 from dotenv import load_dotenv
 
-from .db import get_engine, get_primary_keys
-from .extract import read_sheet
+from etl.db import get_engine, get_primary_keys
+from etl.schema import ensure_database_schema, get_schema_info
+from etl.extract import read_sheet
 from .transform import (
     clean_dataframe,
     apply_column_renames,
@@ -170,44 +171,43 @@ def main(argv: list[str] | None = None):
     print("[ETL] Connecting to database...")
     engine = get_engine()
     
-    # Handle schema creation if requested
+    # Handle schema creation
+    # Always check if schema exists and create if missing (unless force_recreate is requested via args)
     with engine.begin() as conn:
-        if args.create_schema or args.schema_only or args.force_schema:
-            print("[ETL] Setting up database schema from models.py...")
-            
-            # Ensure models are loaded for schema creation
-            if models_module is None:
-                if args.models_path:
-                    from .models_loader import load_models_module
-                    print(f"[ETL] Loading models from: {args.models_path}")
-                    models_module = load_models_module(args.models_path)
-                else:
-                    # Load from default location
-                    from .models_loader import load_models_module
-                    default_models_path = os.path.join(os.path.dirname(__file__), "models.py")
-                    print(f"[ETL] Loading models from default location: {default_models_path}")
-                    models_module = load_models_module(default_models_path)
-            
-            # Create schema from models
-            # Note: Schema creation is skipped when using Lambda engine
-            schema_created = ensure_database_schema(
-                conn, 
-                engine,
-                force_recreate=args.force_schema,
-                models_module=models_module
-            )
-            # Schema creation may be skipped for Lambda, which is OK
-            if schema_created is False and not hasattr(engine, '__class__') or 'Lambda' not in engine.__class__.__name__:
-                print("[ETL] ERROR: Failed to create database schema from models.py")
-                sys.exit(3)
-            
-            schema_info = get_schema_info(conn)
-            if 'error' not in schema_info:
-                print(f"[ETL] Database ready with {schema_info['table_count']} tables")
-            
-            if args.schema_only:
-                print("[ETL] Schema creation complete. Exiting (--schema-only mode)")
-                return
+        # Always check/ensure schema exists
+        print("[ETL] Verifying database schema...")
+        
+        # Ensure models are loaded for schema creation
+        if models_module is None:
+            if args.models_path:
+                from .models_loader import load_models_module
+                print(f"[ETL] Loading models from: {args.models_path}")
+                models_module = load_models_module(args.models_path)
+            else:
+                # Load from default location
+                from .models_loader import load_models_module
+                default_models_path = os.path.join(os.path.dirname(__file__), "models.py")
+                print(f"[ETL] Loading models from default location: {default_models_path}")
+                models_module = load_models_module(default_models_path)
+
+        # Create/Verify schema
+        # ensure_database_schema handles the check_database_exists logic internally
+        schema_created = ensure_database_schema(
+            conn, 
+            engine, 
+            force_recreate=args.force_schema, 
+            models_module=models_module
+        )
+        
+        if schema_created:
+            print("[ETL] Database schema verified/created successfully.")
+        else:
+            print("[ETL] ERROR: Failed to verify/create database schema.")
+            sys.exit(1)
+        
+        if args.schema_only:
+            print("[ETL] Schema creation complete. Exiting (--schema-only mode)")
+            return
         
         # Ensure we can introspect PKs (use models if available)
         pk_map = get_primary_keys(conn, models_module)
@@ -387,6 +387,10 @@ def main(argv: list[str] | None = None):
 
         except Exception as e:
             error_str = str(e)
+            import traceback
+            print(f"    [CRITICAL ERROR] Exception while processing {target_table}:")
+            traceback.print_exc()
+            
             # Check if it's a FK violation - this should not happen if FK filtering is working
             if "ForeignKeyViolation" in error_str or "foreign key constraint" in error_str.lower():
                 print(f"WARNING: Foreign key violation for {target_table} (FK filtering should have prevented this).")

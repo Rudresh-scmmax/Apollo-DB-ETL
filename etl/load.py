@@ -981,7 +981,12 @@ def stage_and_upsert(conn: Connection, table: str, df: pd.DataFrame, pk_cols: Li
                     RETURNING xmax = 0 AS inserted;
                     """
                 )
-                print(f"    [DEBUG] SQL with RETURNING: {sql_with_returning}")
+                
+                # Safe print for debugging SQL (handles unicode characters)
+                try:
+                    print(f"    [DEBUG] SQL with RETURNING: {sql_with_returning}")
+                except UnicodeEncodeError:
+                    print(f"    [DEBUG] SQL with RETURNING: (hidden due to unicode characters)")
                 
                 sql_without_returning = text(
                     f"""
@@ -990,7 +995,10 @@ def stage_and_upsert(conn: Connection, table: str, df: pd.DataFrame, pk_cols: Li
                     ON CONFLICT ({conflict}) DO UPDATE SET {set_clause};
                     """
                 )
-                print(f"    [DEBUG] SQL without RETURNING: {sql_without_returning}")
+                try:
+                    print(f"    [DEBUG] SQL without RETURNING: {sql_without_returning}")
+                except UnicodeEncodeError:
+                    print(f"    [DEBUG] SQL without RETURNING: (hidden due to unicode characters)")
                 
                 # Execute batch - try with RETURNING first, fall back to without RETURNING if it fails
                 batch_rows = []

@@ -15,17 +15,12 @@ def check_database_exists(conn: Connection) -> bool:
         return False
 
 
-def create_database_schema_from_models(engine: Engine, models_module: Optional[Any] = None) -> None:
+def create_database_schema_from_models(engine: Engine, conn: Optional[Connection] = None, models_module: Optional[Any] = None) -> None:
     """Create database schema from SQLAlchemy models.
     
-    Note: If using Lambda engine, schema creation is skipped (schema should already exist).
+    Supports both standard engines (using metadata.create_all) and Lambda engines
+    (by generating DDL and executing via connection).
     """
-    # Check if using Lambda engine (doesn't support SQLAlchemy DDL)
-    if hasattr(engine, '__class__') and 'Lambda' in engine.__class__.__name__:
-        print("Note: Using Lambda engine - skipping schema creation (schema should already exist)")
-        print("If schema doesn't exist, create it manually or use direct connection for schema setup")
-        return
-    """Create the APOLLO database schema from SQLAlchemy models."""
     if models_module is None:
         # Try to load models from default location
         import sys
@@ -45,14 +40,81 @@ def create_database_schema_from_models(engine: Engine, models_module: Optional[A
     
     print("Creating APOLLO database schema from SQLAlchemy models...")
     
-    # Create all tables from models
-    Base.metadata.create_all(engine)
+    # Check if using Lambda engine
+    is_lambda = hasattr(engine, '__class__') and 'Lambda' in engine.__class__.__name__
     
-    # Get list of created tables
-    created_tables = list(Base.metadata.tables.keys())
-    print(f"Database schema creation complete. Created {len(created_tables)} tables.")
-    for table_name in sorted(created_tables):
-        print(f"  ✓ {table_name}")
+    if is_lambda:
+        print("Using Lambda engine - generating DDL for manual execution...")
+        if conn is None:
+            raise ValueError("Connection object required for Lambda schema creation")
+            
+        from sqlalchemy.schema import CreateTable
+        from sqlalchemy.dialects import postgresql
+        
+        # Create tables in dependency order
+        # sort_tables returns tables in dependency order (parents first)
+        tables = Base.metadata.sorted_tables
+        
+        # Handle Enums first (Postgres specific)
+        from sqlalchemy import Enum
+        
+        # Collect all Enums
+        enums = set()
+        for table in tables:
+            for column in table.columns:
+                if isinstance(column.type, Enum) and column.type.name:
+                    enums.add(column.type)
+        
+        # Create Enums
+        for enum in enums:
+            try:
+                # Manually generate CREATE TYPE SQL to avoid dependency on CreateType or bind.dialect
+                # This is safer for Lambda environment
+                if not enum.name:
+                    continue
+                    
+                # Get enum values
+                values = ", ".join(f"'{v}'" for v in enum.enums)
+                sql = f"CREATE TYPE {enum.name} AS ENUM ({values})"
+                
+                conn.execute(text(sql))
+                print(f"  [OK] Created type: {enum.name}")
+            except Exception as e:
+                if "already exists" in str(e):
+                    print(f"  - Type {enum.name} already exists")
+                else:
+                    print(f"  [ERROR] Failed to create type {enum.name}: {e}")
+                    raise e
+
+        
+        count = 0
+        for table in tables:
+            try:
+                # Generate DDL
+                ddl = CreateTable(table).compile(dialect=postgresql.dialect())
+                # Execute DDL
+                conn.execute(text(str(ddl)))
+                print(f"  [OK] Created table: {table.name}")
+                count += 1
+            except Exception as e:
+                # If table already exists, we might get an error, which is fine
+                if "already exists" in str(e):
+                    print(f"  - Table {table.name} already exists")
+                else:
+                    print(f"  [ERROR] Failed to create table {table.name}: {e}")
+                    raise e
+                    
+        print(f"Database schema creation complete. Created/Verified {count} tables.")
+        
+    else:
+        # Standard SQLAlchemy creation
+        Base.metadata.create_all(engine)
+        
+        # Get list of created tables
+        created_tables = list(Base.metadata.tables.keys())
+        print(f"Database schema creation complete. Created {len(created_tables)} tables.")
+        for table_name in sorted(created_tables):
+            print(f"  [OK] {table_name}")
 
 
 def create_database_schema_from_sql(conn: Connection, schema_file_path: str = None) -> None:
@@ -112,7 +174,7 @@ def create_database_schema(conn: Connection, models_module: Optional[Any] = None
         from etl.models_loader import load_models_module
         models_module = load_models_module(models_path)
     
-    create_database_schema_from_models(engine, models_module)
+    create_database_schema_from_models(engine, conn=conn, models_module=models_module)
 
 
 def ensure_database_schema(conn: Connection, engine: Engine, force_recreate: bool = False, models_module: Optional[Any] = None) -> bool:

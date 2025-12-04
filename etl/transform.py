@@ -100,7 +100,7 @@ def apply_json_transforms(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
     
     # Define JSON column mappings per table
     json_transforms = {
-        'uom_master': ['synonyms'],
+        # 'uom_master': ['synonyms'],  # Removed to prevent double-encoding of valid JSON
         'repeat_master': ['repeat_choices']
     }
     

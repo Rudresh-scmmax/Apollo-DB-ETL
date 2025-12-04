@@ -91,7 +91,7 @@ if __name__ == "__main__":
         "--reports-dir", str(reports_dir),
         "--models-path", str(models_path),
         "--create-schema",  # Create schema if needed
-    ]
+    ] + sys.argv[1:]
     
     print(f"\n{'='*60}")
     print(f"Running ETL locally")
